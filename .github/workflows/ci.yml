@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test-api:
+    name: .NET API tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        working-directory: services/api
+        run: dotnet restore
+
+      - name: Build
+        working-directory: services/api
+        run: dotnet build --no-restore -c Release
+
+      - name: Test
+        working-directory: services/api
+        run: dotnet test --no-build -c Release --verbosity normal
+
+  test-flutter:
+    name: Flutter tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.22.0"
+          channel: stable
+
+      - name: Pub get
+        working-directory: apps/mobile
+        run: flutter pub get
+
+      - name: Analyze
+        working-directory: apps/mobile
+        run: flutter analyze
+
+      - name: Test
+        working-directory: apps/mobile
+        run: flutter test
+
+  build-docker:
+    name: Build Docker image
+    runs-on: ubuntu-latest
+    needs: [test-api]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build API image
+        run: docker build -f services/api/IdleRPG.API/Dockerfile -t idlerpg-api:ci services/api

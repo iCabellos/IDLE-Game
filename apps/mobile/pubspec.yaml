@@ -1,0 +1,58 @@
+name: idle_rpg
+description: Idle RPG + Steam Market — Flutter client (mobile + desktop).
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management
+  flutter_bloc: ^8.1.6
+
+  # Routing
+  go_router: ^14.0.0
+
+  # Networking
+  dio: ^5.4.0
+
+  # Local cache / storage
+  hive_flutter: ^1.1.0
+  flutter_secure_storage: ^9.2.2
+
+  # Animations
+  flutter_animate: ^4.5.0
+
+  # Codegen models
+  freezed_annotation: ^2.4.1
+  json_annotation: ^4.8.1
+
+  # Dependency injection
+  get_it: ^7.7.0
+  injectable: ^2.4.1
+
+  # Images
+  cached_network_image: ^3.3.1
+
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^4.0.0
+
+  build_runner: ^2.4.11
+  freezed: ^2.5.7
+  json_serializable: ^6.8.0
+  injectable_generator: ^2.6.1
+
+  bloc_test: ^9.1.7
+  mocktail: ^1.0.3
+
+flutter:
+  uses-material-design: true

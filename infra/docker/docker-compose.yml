@@ -1,0 +1,106 @@
+name: idlerpg
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: idlerpg-postgres
+    environment:
+      POSTGRES_USER: idlerpg
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: idlerpg
+    ports:
+      - "5432:5432"
+    volumes:
+      - idlerpg-postgres-data:/var/lib/postgresql/data
+    networks:
+      - idlerpg-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U idlerpg -d idlerpg"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7
+    container_name: idlerpg-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - idlerpg-redis-data:/data
+    networks:
+      - idlerpg-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  api:
+    build:
+      context: ../../services/api
+      dockerfile: IdleRPG.API/Dockerfile
+    container_name: idlerpg-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:5000
+      POSTGRES_URL: postgresql://idlerpg:secret@postgres:5432/idlerpg
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-key-change-me-min-32-chars}
+      JWT_ISSUER: ${JWT_ISSUER:-idle-rpg-api}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-idle-rpg-client}
+      HANGFIRE_DASHBOARD_USER: ${HANGFIRE_DASHBOARD_USER:-admin}
+      HANGFIRE_DASHBOARD_PASS: ${HANGFIRE_DASHBOARD_PASS:-admin}
+    ports:
+      - "5000:5000"
+    volumes:
+      - idlerpg-api-logs:/app/logs
+    networks:
+      - idlerpg-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: idlerpg-pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@idlerpg.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "5050:80"
+    volumes:
+      - idlerpg-pgadmin-data:/var/lib/pgadmin
+    networks:
+      - idlerpg-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:80/misc/ping || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  idlerpg-net:
+    name: idlerpg-net
+    driver: bridge
+
+volumes:
+  idlerpg-postgres-data:
+  idlerpg-redis-data:
+  idlerpg-api-logs:
+  idlerpg-pgadmin-data:
