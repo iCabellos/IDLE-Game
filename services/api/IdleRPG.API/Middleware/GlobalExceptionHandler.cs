@@ -71,6 +71,36 @@ public class GlobalExceptionHandler : IExceptionHandler
                     Instance = context.Request.Path,
                 };
 
+            case NotFoundException notFound:
+                logAsError = false;
+                return new ProblemDetails
+                {
+                    Status = StatusCodes.Status404NotFound,
+                    Title = "Not found",
+                    Detail = notFound.Message,
+                    Instance = context.Request.Path,
+                };
+
+            case ForbiddenException forbidden:
+                logAsError = false;
+                return new ProblemDetails
+                {
+                    Status = StatusCodes.Status403Forbidden,
+                    Title = "Forbidden",
+                    Detail = forbidden.Message,
+                    Instance = context.Request.Path,
+                };
+
+            case DomainValidationException domain:
+                logAsError = false;
+                return new ProblemDetails
+                {
+                    Status = StatusCodes.Status400BadRequest,
+                    Title = "Operation rejected",
+                    Detail = domain.Message,
+                    Instance = context.Request.Path,
+                };
+
             default:
                 logAsError = true;
                 return new ProblemDetails

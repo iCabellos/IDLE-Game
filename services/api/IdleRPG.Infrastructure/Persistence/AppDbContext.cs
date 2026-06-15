@@ -21,6 +21,7 @@ public class AppDbContext : DbContext
     public DbSet<ItemInstance> ItemInstances => Set<ItemInstance>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<AntiBotEvent> AntiBotEvents => Set<AntiBotEvent>();
+    public DbSet<SetBonus> SetBonuses => Set<SetBonus>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

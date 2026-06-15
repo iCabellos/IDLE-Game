@@ -11,5 +11,6 @@ public static class DbSeeder
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
         await ItemSeed.SeedAsync(context, ct);
+        await SetBonusSeed.SeedAsync(context, ct);
     }
 }

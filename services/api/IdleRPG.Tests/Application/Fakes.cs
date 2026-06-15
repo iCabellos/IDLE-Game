@@ -1,5 +1,7 @@
 using IdleRPG.Application.DTOs.Auth;
 using IdleRPG.Application.Interfaces.Auth;
+using IdleRPG.Application.Interfaces.Caching;
+using IdleRPG.Application.Interfaces.Items;
 using IdleRPG.Domain.Entities;
 using IdleRPG.Domain.Interfaces;
 
@@ -105,4 +107,39 @@ public sealed class FakeCurrentUserService : ICurrentUserService
     public Guid? UserId { get; set; }
     public string? SteamId { get; set; }
     public bool IsAuthenticated => UserId is not null;
+}
+
+/// <summary>In-memory cache used in item-engine tests.</summary>
+public sealed class FakeCacheService : ICacheService
+{
+    public Dictionary<string, object?> Store { get; } = new();
+
+    public Task<T?> GetAsync<T>(string key, CancellationToken ct = default)
+        => Task.FromResult(Store.TryGetValue(key, out var v) && v is T t ? t : default);
+
+    public Task SetAsync<T>(string key, T value, TimeSpan ttl, CancellationToken ct = default)
+    {
+        Store[key] = value;
+        return Task.CompletedTask;
+    }
+
+    public Task RemoveAsync(string key, CancellationToken ct = default)
+    {
+        Store.Remove(key);
+        return Task.CompletedTask;
+    }
+}
+
+/// <summary>Configurable Steam inventory ownership fake.</summary>
+public sealed class FakeSteamInventoryService : ISteamInventoryService
+{
+    public bool Owns { get; set; } = true;
+    public Func<Task<bool>>? Behavior { get; set; }
+    public int Calls { get; private set; }
+
+    public Task<bool> OwnsAssetAsync(string steamId, string steamInventoryId, CancellationToken ct = default)
+    {
+        Calls++;
+        return Behavior is not null ? Behavior() : Task.FromResult(Owns);
+    }
 }

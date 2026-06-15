@@ -261,6 +261,7 @@ app.MapHealthChecks("/health", new HealthCheckOptions
 // API endpoints
 // ---------------------------------------------------------------------
 app.MapAuthEndpoints();
+app.MapItemEndpoints();
 
 var hangfireUser = builder.Configuration["HANGFIRE_DASHBOARD_USER"];
 var hangfirePass = builder.Configuration["HANGFIRE_DASHBOARD_PASS"];

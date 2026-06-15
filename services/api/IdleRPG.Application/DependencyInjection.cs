@@ -1,5 +1,7 @@
 using FluentValidation;
 using IdleRPG.Application.Common.Behaviors;
+using IdleRPG.Application.Interfaces.Items;
+using IdleRPG.Application.Services;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -15,6 +17,8 @@ public static class DependencyInjection
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(assembly));
         services.AddValidatorsFromAssembly(assembly);
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+
+        services.AddScoped<ICharacterStatsService, CharacterStatsService>();
 
         return services;
     }
