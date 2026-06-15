@@ -13,15 +13,17 @@ public sealed class ItemConfiguration : IEntityTypeConfiguration<Item>
 
         builder.Property(i => i.Name).IsRequired().HasMaxLength(128);
         builder.Property(i => i.Description).HasMaxLength(1024);
-        builder.Property(i => i.Class).HasConversion<int>();
-        builder.Property(i => i.BaseRarity).HasConversion<int>();
-        builder.Property(i => i.Slot).HasConversion<int>();
-        builder.Property(i => i.CharacterRestriction).HasConversion<int?>();
-        builder.Property(i => i.BaseStatsJson).HasColumnType("jsonb");
-        builder.Property(i => i.PassivesJson).HasColumnType("jsonb");
+        builder.Property(i => i.Class).HasColumnType("smallint");
+        builder.Property(i => i.BaseRarity).HasColumnType("smallint");
+        builder.Property(i => i.Slot).HasColumnType("smallint");
+        builder.Property(i => i.CharacterRestriction).HasColumnType("smallint");
+        builder.Property(i => i.BaseStatsJson).HasColumnType("jsonb").HasDefaultValueSql("'{}'");
+        builder.Property(i => i.PassivesJson).HasColumnType("jsonb").HasDefaultValueSql("'[]'");
         builder.Property(i => i.SteamMarketHashName).HasMaxLength(256);
+        builder.Property(i => i.IsTradeable).HasDefaultValue(true);
 
         builder.HasIndex(i => i.Name);
         builder.HasIndex(i => i.SetId);
+        builder.HasIndex(i => i.SteamMarketHashName).IsUnique();
     }
 }

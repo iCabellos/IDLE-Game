@@ -9,6 +9,7 @@ using IdleRPG.Application;
 using IdleRPG.Infrastructure;
 using IdleRPG.Infrastructure.Configuration;
 using IdleRPG.Infrastructure.Persistence;
+using IdleRPG.Infrastructure.Persistence.Seed;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
@@ -206,6 +207,26 @@ var app = builder.Build();
 // ---------------------------------------------------------------------
 // Middleware pipeline
 // ---------------------------------------------------------------------
+// ---------------------------------------------------------------------
+// Apply migrations + seed development data. SEED_AND_EXIT runs the same
+// migrate+seed step from the CLI (used by `make db-reset`) and then exits.
+// ---------------------------------------------------------------------
+var seedAndExit = builder.Configuration.GetValue<bool>("SEED_AND_EXIT");
+
+if (app.Environment.IsDevelopment() || seedAndExit)
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await db.Database.MigrateAsync();
+    await DbSeeder.SeedAsync(app.Services);
+}
+
+if (seedAndExit)
+{
+    Log.Information("SEED_AND_EXIT set — database migrated and seeded, exiting.");
+    return;
+}
+
 app.UseExceptionHandler();
 
 app.UseSerilogRequestLogging();

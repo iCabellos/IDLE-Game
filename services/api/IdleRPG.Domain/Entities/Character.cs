@@ -22,6 +22,7 @@ public class Character
     public string StatsJson { get; set; } = "{}";
 
     public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
     public DateTimeOffset? DeletedAt { get; set; }
 
     // Navigation

@@ -6,7 +6,7 @@ API_PROJECT   := $(API_DIR)/IdleRPG.API/IdleRPG.API.csproj
 INFRA_PROJECT := $(API_DIR)/IdleRPG.Infrastructure/IdleRPG.Infrastructure.csproj
 MOBILE_DIR    := apps/mobile
 
-.PHONY: help dev down test-all test-api test-flutter build db-migrate db-reset clean
+.PHONY: help dev down test-all test-api test-flutter build db-migrate db-reset db-seed clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -44,6 +44,10 @@ db-reset: ## Drop and recreate the database, then migrate + seed
 	cd $(API_DIR) && dotnet ef database drop --force \
 		--project IdleRPG.Infrastructure --startup-project IdleRPG.API
 	$(MAKE) db-migrate
+	$(MAKE) db-seed
+
+db-seed: ## Seed development data (one-shot, then exits)
+	cd $(API_DIR) && SEED_AND_EXIT=true dotnet run --project IdleRPG.API
 
 clean: ## Remove build artifacts and stop the stack
 	cd $(API_DIR) && dotnet clean || true

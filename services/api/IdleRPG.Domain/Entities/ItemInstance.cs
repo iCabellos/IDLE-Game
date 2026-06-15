@@ -23,6 +23,8 @@ public class ItemInstance
     public bool IsListedOnMarket { get; set; }
     public DateTimeOffset? LastSteamValidation { get; set; }
 
+    public DateTimeOffset UpdatedAt { get; set; }
+
     // Navigation
     public Item? Item { get; set; }
     public User? Owner { get; set; }

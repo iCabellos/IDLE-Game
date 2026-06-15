@@ -19,6 +19,7 @@ public class User
     public DateTimeOffset? BannedAt { get; set; }
     public string? BanReason { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
     public DateTimeOffset LastLoginAt { get; set; }
 
     /// <summary>Soft-delete marker. Non-null rows are filtered out of all queries.</summary>
