@@ -1,6 +1,7 @@
 using IdleRPG.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -33,23 +34,30 @@ public abstract class ApiTestBase : IAsyncLifetime
 
     protected HttpClient Client { get; private set; } = default!;
 
+    /// <summary>Override to replace registered services with test doubles.</summary>
+    protected virtual void ConfigureTestServices(IServiceCollection services)
+    {
+    }
+
     public async Task InitializeAsync()
     {
         await Task.WhenAll(_postgresContainer.StartAsync(), _redisContainer.StartAsync());
+
+        // Minimal hosting reads configuration eagerly inside Program.cs (before the
+        // test's ConfigureAppConfiguration callback runs), so the connection strings
+        // and secrets must be present as environment variables when the host builds.
+        Environment.SetEnvironmentVariable("POSTGRES_URL", _postgresContainer.GetConnectionString());
+        Environment.SetEnvironmentVariable("REDIS_URL", _redisContainer.GetConnectionString());
+        Environment.SetEnvironmentVariable("JWT_SECRET", "integration-tests-symmetric-secret-key-32bytes!");
+        Environment.SetEnvironmentVariable("JWT_ISSUER", "idlerpg");
+        Environment.SetEnvironmentVariable("JWT_AUDIENCE", "idlerpg-client");
 
         Factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
                 builder.UseEnvironment("Testing");
 
-                builder.ConfigureAppConfiguration((_, configBuilder) =>
-                {
-                    configBuilder.AddInMemoryCollection(new Dictionary<string, string?>
-                    {
-                        ["POSTGRES_URL"] = _postgresContainer.GetConnectionString(),
-                        ["REDIS_URL"] = _redisContainer.GetConnectionString()
-                    });
-                });
+                builder.ConfigureTestServices(ConfigureTestServices);
             });
 
         Client = Factory.CreateClient();

@@ -1,16 +1,19 @@
+using System.Text;
 using System.Threading.RateLimiting;
-using FluentValidation;
-using FluentValidation.AspNetCore;
 using Hangfire;
 using Hangfire.Dashboard;
 using Hangfire.PostgreSql;
+using IdleRPG.API.Endpoints;
 using IdleRPG.API.Middleware;
 using IdleRPG.Application;
+using IdleRPG.Infrastructure;
 using IdleRPG.Infrastructure.Configuration;
 using IdleRPG.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
 
@@ -56,15 +59,37 @@ builder.Services.AddStackExchangeRedisCache(options =>
 });
 
 // ---------------------------------------------------------------------
-// MediatR
+// Application + Infrastructure layers (MediatR, validators, repositories,
+// auth services)
 // ---------------------------------------------------------------------
-builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(AssemblyMarker).Assembly));
+builder.Services.AddApplication();
+builder.Services.AddInfrastructure();
 
 // ---------------------------------------------------------------------
-// FluentValidation
+// JWT authentication (HS256 using the symmetric JWT_SECRET)
 // ---------------------------------------------------------------------
-builder.Services.AddValidatorsFromAssembly(typeof(AssemblyMarker).Assembly);
-builder.Services.AddFluentValidationAutoValidation();
+var jwtSecret = builder.Configuration["JWT_SECRET"]
+    ?? throw new InvalidOperationException("JWT_SECRET is not configured.");
+var jwtIssuer = builder.Configuration["JWT_ISSUER"] ?? "idlerpg";
+var jwtAudience = builder.Configuration["JWT_AUDIENCE"] ?? "idlerpg-client";
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwtIssuer,
+            ValidateAudience = true,
+            ValidAudience = jwtAudience,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromSeconds(30),
+        };
+    });
+
+builder.Services.AddAuthorization();
 
 // ---------------------------------------------------------------------
 // Hangfire
@@ -187,6 +212,9 @@ app.UseSerilogRequestLogging();
 
 app.UseCors("flutter-app");
 
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.UseRateLimiter();
 
 if (app.Environment.IsDevelopment())
@@ -207,6 +235,11 @@ app.MapHealthChecks("/health", new HealthCheckOptions
         await context.Response.WriteAsync($"{{\"status\":\"{status}\"}}");
     }
 });
+
+// ---------------------------------------------------------------------
+// API endpoints
+// ---------------------------------------------------------------------
+app.MapAuthEndpoints();
 
 var hangfireUser = builder.Configuration["HANGFIRE_DASHBOARD_USER"];
 var hangfirePass = builder.Configuration["HANGFIRE_DASHBOARD_PASS"];
