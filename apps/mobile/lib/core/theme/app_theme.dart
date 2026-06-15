@@ -72,7 +72,7 @@ class AppTheme {
         foregroundColor: AppColors.text,
         elevation: 0,
       ),
-      cardTheme: const CardTheme(
+      cardTheme: const CardThemeData(
         color: AppColors.surface,
       ),
       textTheme: base.textTheme.apply(

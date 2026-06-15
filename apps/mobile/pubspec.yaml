@@ -12,28 +12,28 @@ dependencies:
     sdk: flutter
 
   # State management
-  flutter_bloc: ^8.1.6
+  flutter_bloc: ^9.1.1
 
   # Routing
-  go_router: ^14.0.0
+  go_router: ^17.3.0
 
   # Networking
   dio: ^5.4.0
 
   # Local cache / storage
   hive_flutter: ^1.1.0
-  flutter_secure_storage: ^9.2.2
+  flutter_secure_storage: ^10.3.1
 
   # Animations
   flutter_animate: ^4.5.0
 
   # Codegen models
-  freezed_annotation: ^2.4.1
+  freezed_annotation: ^3.1.0
   json_annotation: ^4.8.1
 
   # Dependency injection
-  get_it: ^7.7.0
-  injectable: ^2.4.1
+  get_it: ^9.2.1
+  injectable: ^3.0.0
 
   # Images
   cached_network_image: ^3.3.1
@@ -44,14 +44,14 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
-  flutter_lints: ^4.0.0
+  flutter_lints: ^6.0.0
 
   build_runner: ^2.4.11
-  freezed: ^2.5.7
+  freezed: ^3.2.5
   json_serializable: ^6.8.0
-  injectable_generator: ^2.6.1
+  injectable_generator: ^3.0.2
 
-  bloc_test: ^9.1.7
+  bloc_test: ^10.0.0
   mocktail: ^1.0.3
 
 flutter:
