@@ -1,7 +1,7 @@
 {
   "name": "Idle RPG",
   "identifier": "com.icabellos.idlerpg.altstore-source",
-  "sourceURL": "https://raw.githubusercontent.com/iCabellos/IDLE-Game/main/altstore.json",
+  "sourceURL": "https://raw.githubusercontent.com/iCabellos/IDLE-Game/claude/game-implementation-dev-q5wa7d/altstore.json",
   "apps": [
     {
       "name": "Idle RPG",
