@@ -1,0 +1,66 @@
+name: iOS Build (AltStore IPA)
+
+on:
+  push:
+    branches: [claude/game-implementation-dev-q5wa7d, main]
+    paths:
+      - 'apps/mobile/**'
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    name: Build unsigned IPA for AltStore PAL
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.2'
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        working-directory: apps/mobile
+        run: flutter pub get
+
+      - name: Build iOS (no codesign)
+        working-directory: apps/mobile
+        run: |
+          flutter build ios --release --no-codesign
+
+      - name: Package as IPA
+        working-directory: apps/mobile
+        run: |
+          mkdir -p build/ipa/Payload
+          cp -r build/ios/iphoneos/Runner.app build/ipa/Payload/
+          cd build/ipa
+          zip -r ../../IdleRPG.ipa Payload/
+          echo "IPA size: $(du -sh ../../IdleRPG.ipa)"
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: IdleRPG-iOS
+          path: apps/mobile/IdleRPG.ipa
+          retention-days: 30
+
+      - name: Create / update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ios-latest
+          name: "Idle RPG — iOS Preview"
+          body: |
+            ## Idle RPG iOS Preview (F7 early screens)
+
+            Install via **AltStore PAL** (EU):
+            1. Install AltStore PAL from the EU App Store
+            2. Add source: `https://raw.githubusercontent.com/${{ github.repository }}/main/altstore.json`
+            3. Find "Idle RPG" and tap Install
+
+            > Built from `${{ github.ref_name }}` · commit `${{ github.sha }}`
+          files: apps/mobile/IdleRPG.ipa
+          make_latest: true
