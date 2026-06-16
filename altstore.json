@@ -1,7 +1,5 @@
 {
   "name": "Idle RPG",
-  "identifier": "com.icabellos.idlerpg.altstore-source",
-  "sourceURL": "https://raw.githubusercontent.com/iCabellos/IDLE-Game/gh-pages/altstore.json",
   "apps": [
     {
       "name": "Idle RPG",
@@ -11,11 +9,14 @@
       "localizedDescription": "Idle RPG + Steam Market. Manage your character idle combat, track your Steam inventory, and collect rare loot. Early preview showing Login, Dashboard, Inventory and Widget screens.",
       "iconURL": "https://raw.githubusercontent.com/iCabellos/IDLE-Game/gh-pages/icons/Icon-512.png",
       "tintColor": "1A56A0",
-      "screenshots": [],
+      "screenshotURLs": [],
+      "version": "0.1.0",
+      "versionDate": "2026-06-16",
+      "downloadURL": "https://github.com/iCabellos/IDLE-Game/releases/download/ios-latest/IdleRPG.ipa",
+      "size": 6794756,
       "versions": [
         {
           "version": "0.1.0",
-          "buildVersion": "1",
           "date": "2026-06-16",
           "localizedDescription": "Early F7 preview.",
           "downloadURL": "https://github.com/iCabellos/IDLE-Game/releases/download/ios-latest/IdleRPG.ipa",
@@ -25,7 +26,7 @@
       ],
       "appPermissions": {
         "entitlements": [],
-        "privacy": {}
+        "privacy": []
       }
     }
   ],
