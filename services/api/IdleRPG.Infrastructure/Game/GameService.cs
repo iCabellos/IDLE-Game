@@ -18,8 +18,8 @@ namespace IdleRPG.Infrastructure.Game;
 /// </summary>
 public sealed class GameService : IGameService
 {
-    private const double TickIntervalSeconds = 3.0; // slower, clearer turns
-    private const int MaxCatchUpTicks = 400; // cap a single advance (~20 min)
+    private const double TickIntervalSeconds = 4.0; // slower, clearer turns
+    private const int MaxCatchUpTicks = 300; // cap a single advance (~20 min)
 
     private static readonly Guid PreviewUserId = SeedIds.From("user:preview");
     private static readonly JsonSerializerOptions Json = new();

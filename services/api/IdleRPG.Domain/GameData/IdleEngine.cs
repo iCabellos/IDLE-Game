@@ -391,6 +391,11 @@ public static class IdleEngine
         return baseOffense * (1 + 0.12 * (h.Level - 1));
     }
 
+    /// <summary>Sub-stats that act against the target enemy (shown over it).</summary>
+    private static bool IsEnemyDebuff(ItemPower.Stat s) => s is
+        ItemPower.Stat.PhysPen or ItemPower.Stat.MagPen or
+        ItemPower.Stat.EffectHit or ItemPower.Stat.Execute;
+
     private static Dictionary<ItemPower.Stat, double> BaseSubStats(string archetype) => new()
     {
         [ItemPower.Stat.CritRate] = archetype == "critDamage" ? 0.08 : archetype == "physical" ? 0.06 : 0.04,
@@ -423,6 +428,7 @@ public static class IdleEngine
                     After = ItemPower.FormatValue(perk.Stat, after),
                     Cell = c,
                     Line = l,
+                    Target = IsEnemyDebuff(perk.Stat) ? "enemy" : "hero",
                 });
             }
         }
@@ -578,7 +584,7 @@ public static class IdleEngine
                             .Select(st => new DamageStepView(st.Label, st.Total, st.Kind))
                             .ToList()),
                 s.Reel.Ledger
-                    .Select(x => new SubStatView(x.Stat, x.Before, x.After, x.Cell, x.Line))
+                    .Select(x => new SubStatView(x.Stat, x.Before, x.After, x.Cell, x.Line, x.Target))
                     .ToList()),
             Outcome: s.Outcome,
             Status: s.Status);

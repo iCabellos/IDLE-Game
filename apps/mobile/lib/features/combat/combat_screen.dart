@@ -12,12 +12,15 @@ import '../../core/pixel/pixel_art.dart';
 import '../../core/pixel/sprites.dart';
 
 const _pixelFont = 'monospace';
+const double _cellHeight = 172;
+const double _passiveLineH = 9.5;
 
-// Fixed reel cell height (sized for the max buff list, never dynamic).
-const double _cellHeight = 168;
+/// Total turn animation length, scaled to the number of sub-stats so the walk
+/// always covers them all and still finishes before the next 4s server turn.
+int _turnMs(int ledgerLen) => (1600 + ledgerLen * 120).clamp(1800, 3400);
 
-/// Shared turn pace so the reel underline and the head total stay in sync.
-int _turnMs(int ledgerLen) => (700 + ledgerLen * 110).clamp(1700, 2900);
+/// Progress (0..1) of the "apply sub-stats" phase (after the items roll in).
+double _walkP(double t) => ((t - 0.18) / 0.82).clamp(0.0, 1.0);
 
 TextStyle _retro(double size,
         {Color color = const Color(0xFFF1F5F9), FontWeight w = FontWeight.w700}) =>
@@ -92,7 +95,7 @@ class _CombatScreenState extends State<CombatScreen> {
   void initState() {
     super.initState();
     _poll();
-    _timer = Timer.periodic(const Duration(milliseconds: 2500), (_) => _poll());
+    _timer = Timer.periodic(const Duration(milliseconds: 1500), (_) => _poll());
   }
 
   Future<void> _poll() async {
@@ -152,11 +155,44 @@ class _Connecting extends StatelessWidget {
   }
 }
 
-class _ArenaCard extends StatelessWidget {
+/// Owns the single per-turn clock so the reel underline, the total and the
+/// floating before/after rows are all frame-locked together.
+class _ArenaCard extends StatefulWidget {
   const _ArenaCard({required this.snap, required this.online});
 
   final ServerSnapshot snap;
   final bool online;
+
+  @override
+  State<_ArenaCard> createState() => _ArenaCardState();
+}
+
+class _ArenaCardState extends State<_ArenaCard> with SingleTickerProviderStateMixin {
+  late final AnimationController _turn;
+
+  @override
+  void initState() {
+    super.initState();
+    _turn = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: _turnMs(widget.snap.reel.ledger.length)),
+    )..forward();
+  }
+
+  @override
+  void didUpdateWidget(_ArenaCard old) {
+    super.didUpdateWidget(old);
+    if (widget.snap.tick != old.snap.tick) {
+      _turn.duration = Duration(milliseconds: _turnMs(widget.snap.reel.ledger.length));
+      _turn.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _turn.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -171,12 +207,18 @@ class _ArenaCard extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(4),
-        child: Column(
-          children: [
-            _Banner(snap: snap, online: online),
-            Expanded(child: _Stage(snap: snap)),
-            _Reel(snap: snap),
-          ],
+        child: AnimatedBuilder(
+          animation: _turn,
+          builder: (context, _) {
+            final t = _turn.value;
+            return Column(
+              children: [
+                _Banner(snap: widget.snap, online: widget.online),
+                Expanded(child: _Stage(snap: widget.snap, t: t)),
+                _Reel(snap: widget.snap, t: t),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -271,11 +313,12 @@ class _Pips extends StatelessWidget {
   }
 }
 
-/// Allies front-left, enemy wave back-right (a step higher, on the ground line).
+/// Allies front-left, enemy wave back-right (a step higher).
 class _Stage extends StatelessWidget {
-  const _Stage({required this.snap});
+  const _Stage({required this.snap, required this.t});
 
   final ServerSnapshot snap;
+  final double t;
 
   @override
   Widget build(BuildContext context) {
@@ -286,13 +329,15 @@ class _Stage extends StatelessWidget {
         final heroH = min(h * 0.30, w * 0.15);
         final bossH = min(h * 0.50, w * 0.32);
         final dmg = snap.reel.damage;
+        final ledger = snap.reel.ledger;
+        final hasDebuffs = ledger.any((e) => e.isEnemy);
 
         return Stack(
           fit: StackFit.expand,
           children: [
             StageBackground(theme: _theme(snap.theme)),
 
-            // Enemy wave: right side, a little above the allies' baseline.
+            // Enemy wave: right side, a step above the allies.
             Align(
               alignment: const Alignment(0.96, 0.66),
               child: Row(
@@ -315,7 +360,9 @@ class _Stage extends StatelessWidget {
                           level: null,
                           acting: false,
                           trigger: enemy.hit ? snap.tick : 0,
-                          overlay: null,
+                          overlay: (enemy.hit && hasDebuffs)
+                              ? _FloatRows(ledger: ledger, t: t, enemy: true)
+                              : null,
                         ),
                       ),
                     ),
@@ -344,11 +391,7 @@ class _Stage extends StatelessWidget {
                         acting: hero.acting,
                         trigger: hero.acting ? snap.tick : 0,
                         overlay: (hero.acting && dmg != null)
-                            ? _DamagePopup(
-                                key: ValueKey(snap.tick),
-                                dmg: dmg,
-                                ledger: snap.reel.ledger,
-                              )
+                            ? _HeroTotal(dmg: dmg, ledger: ledger, t: t)
                             : null,
                       ),
                     ),
@@ -460,7 +503,6 @@ class _UnitState extends State<_Unit> with TickerProviderStateMixin {
 
     if (widget.overlay == null) return unit;
 
-    // Float the overlay above the unit's head without affecting layout.
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -469,7 +511,12 @@ class _UnitState extends State<_Unit> with TickerProviderStateMixin {
           child: IgnorePointer(
             child: Align(
               alignment: Alignment.topCenter,
-              child: Transform.translate(offset: const Offset(0, -10), child: widget.overlay),
+              child: OverflowBox(
+                minHeight: 0,
+                maxHeight: double.infinity,
+                alignment: Alignment.bottomCenter,
+                child: Transform.translate(offset: const Offset(0, -8), child: widget.overlay),
+              ),
             ),
           ),
         ),
@@ -533,139 +580,116 @@ class _HpBar extends StatelessWidget {
   }
 }
 
-/// Above the acting hero: ONLY the running total (counts up, no card/border),
-/// rising as the just-applied sub-stat before->after rows stack below it.
-class _DamagePopup extends StatefulWidget {
-  const _DamagePopup({super.key, required this.dmg, required this.ledger});
+/// Only the running total (no card/border), rising as hero before/after rows
+/// stack below it. Counts up through the breakdown steps over the walk phase.
+class _HeroTotal extends StatelessWidget {
+  const _HeroTotal({required this.dmg, required this.ledger, required this.t});
 
   final ServerDamage dmg;
   final List<ServerSubStat> ledger;
-
-  @override
-  State<_DamagePopup> createState() => _DamagePopupState();
-}
-
-class _DamagePopupState extends State<_DamagePopup> with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: Duration(milliseconds: _turnMs(widget.ledger.length)),
-    )..forward();
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
+  final double t;
 
   @override
   Widget build(BuildContext context) {
-    final steps = widget.dmg.steps;
+    final steps = dmg.steps;
     if (steps.isEmpty) return const SizedBox.shrink();
 
-    return AnimatedBuilder(
-      animation: _ctrl,
-      builder: (context, _) {
-        final v = _ctrl.value;
+    final p = _walkP(t);
+    final segs = steps.length;
+    final pos = (p * (segs - 1)).clamp(0.0, (segs - 1).toDouble());
+    final i = pos.floor().clamp(0, segs - 1);
+    final frac = (pos - i).clamp(0.0, 1.0);
+    final to = steps[min(i + 1, segs - 1)].total;
+    final shown = (steps[i].total + (to - steps[i].total) * frac).round();
+    final finalCrit = dmg.crit && p > 0.96;
+    final numColor = finalCrit ? const Color(0xFFFFD700) : const Color(0xFFF1F5F9);
 
-        // Running total counts up through the breakdown steps.
-        final segs = steps.length;
-        final pos = (v * (segs - 1)).clamp(0.0, (segs - 1).toDouble());
-        final i = pos.floor().clamp(0, segs - 1);
-        final frac = (pos - i).clamp(0.0, 1.0);
-        final to = steps[min(i + 1, segs - 1)].total;
-        final shown = (steps[i].total + (to - steps[i].total) * frac).round();
-        final finalCrit = widget.dmg.crit && v > 0.92;
-        final numColor = finalCrit ? const Color(0xFFFFD700) : const Color(0xFFF1F5F9);
+    final rows = _ledgerRows(ledger, t, enemy: false, color: const Color(0xFF6EE7B7));
 
-        // The last few sub-stat changes, newest just under the total, fading.
-        final led = widget.ledger;
-        final idx = led.isEmpty ? -1 : (v * led.length).floor().clamp(0, led.length - 1);
-        final rows = <Widget>[];
-        for (var k = idx; k >= 0 && rows.length < 3; k--) {
-          final age = rows.length;
-          final s = led[k];
-          rows.add(Opacity(
-            opacity: const [1.0, 0.5, 0.25][age],
-            child: Text('${s.stat}  ${s.before} -> ${s.after}',
-                style: _retro(7.5, color: const Color(0xFF6EE7B7), w: FontWeight.w900),
-                maxLines: 1),
-          ));
-        }
-
-        return Transform.translate(
-          // Rise upward as rows stack below the total.
-          offset: Offset(0, -rows.length * 11.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('$shown',
-                  style: _retro(finalCrit ? 22 : 17, color: numColor, w: FontWeight.w900).copyWith(
-                    shadows: const [
-                      Shadow(color: Colors.black, blurRadius: 4, offset: Offset(1, 1)),
-                      Shadow(color: Colors.black, blurRadius: 8),
-                    ],
-                  )),
-              if (finalCrit)
-                Text('CRIT!!', style: _retro(12, color: const Color(0xFFFFD700), w: FontWeight.w900)),
-              ...rows,
-            ],
-          ),
-        );
-      },
+    return Transform.translate(
+      offset: Offset(0, -rows.length * 10.5),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('$shown',
+              style: _retro(finalCrit ? 22 : 17, color: numColor, w: FontWeight.w900).copyWith(
+                shadows: const [
+                  Shadow(color: Colors.black, blurRadius: 4, offset: Offset(1, 1)),
+                  Shadow(color: Colors.black, blurRadius: 8),
+                ],
+              )),
+          if (finalCrit)
+            Text('CRIT!!', style: _retro(12, color: const Color(0xFFFFD700), w: FontWeight.w900)),
+          ...rows,
+        ],
+      ),
     );
   }
 }
 
-/// Fixed-size 1x3 reel. Items roll in, dissolve into their full buff list, and
-/// an underline walks the sub-attributes one by one in sync with the total.
-class _Reel extends StatefulWidget {
-  const _Reel({required this.snap});
+/// Debuff before/after rows floating over the targeted enemy.
+class _FloatRows extends StatelessWidget {
+  const _FloatRows({required this.ledger, required this.t, required this.enemy});
 
-  final ServerSnapshot snap;
-
-  @override
-  State<_Reel> createState() => _ReelState();
-}
-
-class _ReelState extends State<_Reel> with SingleTickerProviderStateMixin {
-  late final AnimationController _turn;
-
-  @override
-  void initState() {
-    super.initState();
-    _turn = AnimationController(
-      vsync: this,
-      duration: Duration(milliseconds: _turnMs(widget.snap.reel.ledger.length)),
-    )..forward();
-  }
-
-  @override
-  void didUpdateWidget(_Reel old) {
-    super.didUpdateWidget(old);
-    if (widget.snap.tick != old.snap.tick) {
-      _turn.duration = Duration(milliseconds: _turnMs(widget.snap.reel.ledger.length));
-      _turn.forward(from: 0);
-    }
-  }
-
-  @override
-  void dispose() {
-    _turn.dispose();
-    super.dispose();
-  }
+  final List<ServerSubStat> ledger;
+  final double t;
+  final bool enemy;
 
   @override
   Widget build(BuildContext context) {
-    final reel = widget.snap.reel;
+    final rows = _ledgerRows(ledger, t, enemy: enemy, color: const Color(0xFFEF6B6B));
+    if (rows.isEmpty) return const SizedBox.shrink();
+    return Transform.translate(
+      offset: Offset(0, -rows.length * 10.5),
+      child: Column(mainAxisSize: MainAxisSize.min, children: rows),
+    );
+  }
+}
+
+/// Builds the visible (newest-first, soft-fading) before/after rows for one
+/// side. No fixed cap — older rows fade to nothing instead of being clipped.
+List<Widget> _ledgerRows(List<ServerSubStat> ledger, double t,
+    {required bool enemy, required Color color}) {
+  if (ledger.isEmpty) return const [];
+  final p = _walkP(t);
+  final applied = (p * ledger.length).floor().clamp(0, ledger.length);
+  final rows = <Widget>[];
+  for (var k = applied - 1; k >= 0; k--) {
+    if (ledger[k].isEnemy != enemy) continue;
+    final age = (applied - 1 - k);
+    final op = (1.0 - age * 0.16).clamp(0.0, 1.0);
+    if (op <= 0.02) break;
+    final s = ledger[k];
+    rows.add(Opacity(
+      opacity: op,
+      child: Text('${s.stat}  ${s.before} -> ${s.after}',
+          style: _retro(7.5, color: color, w: FontWeight.w900), maxLines: 1),
+    ));
+  }
+  return rows;
+}
+
+/// Fixed-size 1x3 reel. Items roll in, then the underline walks every sub-stat
+/// of every item in order, auto-scrolling each cell so all are visible.
+class _Reel extends StatelessWidget {
+  const _Reel({required this.snap, required this.t});
+
+  final ServerSnapshot snap;
+  final double t;
+
+  @override
+  Widget build(BuildContext context) {
+    final reel = snap.reel;
     final items = reel.items;
     final dmg = reel.damage;
     final isPrize = reel.combo != 'MIXED' && items.isNotEmpty;
+    final led = reel.ledger;
+
+    final p = _walkP(t);
+    final applied = led.isEmpty ? 0 : (p * led.length).floor().clamp(0, led.length);
+    final cur = applied - 1;
+    final curCell = cur >= 0 ? led[cur].cell : -1;
+    final curLine = cur >= 0 ? led[cur].line : -1;
 
     return Container(
       width: double.infinity,
@@ -691,29 +715,18 @@ class _ReelState extends State<_Reel> with SingleTickerProviderStateMixin {
           const SizedBox(height: 6),
           SizedBox(
             height: _cellHeight,
-            child: AnimatedBuilder(
-              animation: _turn,
-              builder: (context, _) {
-                final v = _turn.value;
-                final led = reel.ledger;
-                final idx = led.isEmpty ? -1 : (v * led.length).floor().clamp(0, led.length - 1);
-                final curCell = idx >= 0 ? led[idx].cell : -1;
-                final curLine = idx >= 0 ? led[idx].line : -1;
-
-                return Row(
-                  children: [
-                    for (var i = 0; i < 3; i++)
-                      Expanded(
-                        child: _Cell(
-                          item: i < items.length ? items[i] : null,
-                          roll: v,
-                          index: i,
-                          highlightLine: curCell == i ? curLine : -1,
-                        ),
-                      ),
-                  ],
-                );
-              },
+            child: Row(
+              children: [
+                for (var i = 0; i < 3; i++)
+                  Expanded(
+                    child: _Cell(
+                      item: i < items.length ? items[i] : null,
+                      t: t,
+                      index: i,
+                      highlightLine: curCell == i ? curLine : -1,
+                    ),
+                  ),
+              ],
             ),
           ),
         ],
@@ -722,28 +735,50 @@ class _ReelState extends State<_Reel> with SingleTickerProviderStateMixin {
   }
 }
 
-class _Cell extends StatelessWidget {
-  const _Cell({required this.item, required this.roll, required this.index, required this.highlightLine});
+class _Cell extends StatefulWidget {
+  const _Cell({required this.item, required this.t, required this.index, required this.highlightLine});
 
   final ServerReelItem? item;
-  final double roll;
+  final double t;
   final int index;
   final int highlightLine;
 
-  static const _appearStagger = 0.10;
-  static const _appearDur = 0.12;
-  static const _textStart = 0.34;
-  static const _textEnd = 0.46;
+  @override
+  State<_Cell> createState() => _CellState();
+}
+
+class _CellState extends State<_Cell> {
+  final _sc = ScrollController();
+  int _lastLine = -1;
+
+  @override
+  void dispose() {
+    _sc.dispose();
+    super.dispose();
+  }
+
+  void _scrollTo(int line) {
+    if (line < 0 || !_sc.hasClients) return;
+    final target = (line * _passiveLineH - 46).clamp(0.0, _sc.position.maxScrollExtent);
+    _sc.animateTo(target, duration: const Duration(milliseconds: 160), curve: Curves.easeOut);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final it = item;
+    final it = widget.item;
     final color = it == null ? const Color(0xFF1F2D44) : _rarityColor(it.rarityTier);
 
-    final ci = ((roll - index * _appearStagger) / _appearDur).clamp(0.0, 1.0);
-    final textT = ((roll - _textStart) / (_textEnd - _textStart)).clamp(0.0, 1.0);
+    // Roll-in happens in the first 0.18 of the turn.
+    final t = widget.t;
+    final ci = ((t - widget.index * 0.05) / 0.06).clamp(0.0, 1.0);
+    final textT = ((t - 0.12) / 0.06).clamp(0.0, 1.0);
     final iconOpacity = ci * (1 - textT);
     final iconScale = 0.55 + 0.45 * ci;
+
+    if (widget.highlightLine != _lastLine) {
+      _lastLine = widget.highlightLine;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollTo(_lastLine));
+    }
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -761,7 +796,32 @@ class _Cell extends StatelessWidget {
                   padding: const EdgeInsets.all(5),
                   child: Opacity(
                     opacity: textT,
-                    child: _Benefit(item: it, color: color, highlightLine: highlightLine),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(it.rarity.toUpperCase(),
+                            style: _retro(7, color: color, w: FontWeight.w900), maxLines: 1),
+                        const SizedBox(height: 1),
+                        Text(it.primary.toUpperCase(),
+                            style: _retro(8, color: const Color(0xFFF1F5F9), w: FontWeight.w900),
+                            maxLines: 2),
+                        const SizedBox(height: 2),
+                        Expanded(
+                          child: ListView.builder(
+                            controller: _sc,
+                            physics: const NeverScrollableScrollPhysics(),
+                            padding: EdgeInsets.zero,
+                            itemCount: it.passives.length,
+                            itemExtent: _passiveLineH,
+                            itemBuilder: (context, l) => _PassiveLine(
+                              text: it.passives[l],
+                              color: color,
+                              lit: l == widget.highlightLine,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 Positioned.fill(
@@ -787,31 +847,6 @@ class _Cell extends StatelessWidget {
   }
 }
 
-class _Benefit extends StatelessWidget {
-  const _Benefit({required this.item, required this.color, required this.highlightLine});
-
-  final ServerReelItem item;
-  final Color color;
-  final int highlightLine;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(item.rarity.toUpperCase(), style: _retro(7, color: color, w: FontWeight.w900), maxLines: 1),
-        const SizedBox(height: 1),
-        Text(item.primary.toUpperCase(),
-            style: _retro(8.5, color: const Color(0xFFF1F5F9), w: FontWeight.w900), maxLines: 2),
-        const SizedBox(height: 2),
-        for (var l = 0; l < item.passives.length; l++)
-          _PassiveLine(text: item.passives[l], color: color, lit: l == highlightLine),
-      ],
-    );
-  }
-}
-
 class _PassiveLine extends StatelessWidget {
   const _PassiveLine({required this.text, required this.color, required this.lit});
 
@@ -821,19 +856,19 @@ class _PassiveLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 120),
-      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 0.5),
+    return Container(
+      padding: const EdgeInsets.only(left: 2),
       decoration: lit
           ? BoxDecoration(
-              color: color.withValues(alpha: 0.30),
+              color: color.withValues(alpha: 0.34),
               border: Border(left: BorderSide(color: color, width: 2)),
             )
           : null,
+      alignment: Alignment.centerLeft,
       child: Text(
         text,
         style: _retro(6.5,
-            color: lit ? const Color(0xFFF1F5F9) : const Color(0xFF9FB3CC),
+            color: lit ? const Color(0xFFFFFFFF) : const Color(0xFF9FB3CC),
             w: lit ? FontWeight.w900 : FontWeight.w700),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,

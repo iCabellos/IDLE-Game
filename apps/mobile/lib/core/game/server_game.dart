@@ -136,6 +136,7 @@ class ServerSubStat {
     required this.after,
     required this.cell,
     required this.line,
+    required this.target,
   });
 
   final String stat;
@@ -143,6 +144,9 @@ class ServerSubStat {
   final String after;
   final int cell;
   final int line;
+  final String target; // "hero" | "enemy"
+
+  bool get isEnemy => target == 'enemy';
 
   factory ServerSubStat.fromJson(Map<String, dynamic> j) => ServerSubStat(
         stat: j['stat'] as String,
@@ -150,6 +154,7 @@ class ServerSubStat {
         after: j['after'] as String,
         cell: (j['cell'] as num).toInt(),
         line: (j['line'] as num).toInt(),
+        target: (j['target'] as String?) ?? 'hero',
       );
 }
 

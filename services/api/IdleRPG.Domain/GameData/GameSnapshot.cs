@@ -45,7 +45,8 @@ public sealed record ReelView(
     DamageView? Damage,
     IReadOnlyList<SubStatView> Ledger);
 
-public sealed record SubStatView(string Stat, string Before, string After, int Cell, int Line);
+public sealed record SubStatView(
+    string Stat, string Before, string After, int Cell, int Line, string Target);
 
 public sealed record ReelItemView(
     string Kind,

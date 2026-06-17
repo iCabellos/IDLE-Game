@@ -72,6 +72,7 @@ public sealed class SubStatChange
     public string After { get; set; } = string.Empty;
     public int Cell { get; set; }   // which reel cell (0-2)
     public int Line { get; set; }   // which passive line within that cell
+    public string Target { get; set; } = "hero"; // "hero" buff | "enemy" debuff
 }
 
 /// <summary>One item shown in a reel position, with its resolved benefit.</summary>
