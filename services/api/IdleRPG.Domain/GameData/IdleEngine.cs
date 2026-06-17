@@ -112,12 +112,14 @@ public static class IdleEngine
         var actor = NextAliveHero(s);
         if (actor is null) return;
 
-        var (items, combo, mult) = RollReel(actor.SlotKinds, actor.Luck, rng);
+        var (kinds, combo, mult) = RollReel(actor.SlotKinds, actor.Luck, rng);
+        var items = BuildReelItems(kinds, actor);
         s.Reel = new ReelState
         {
             Items = items,
             Combo = combo,
             Multiplier = mult,
+            MaxRarityTier = items.Count == 0 ? 1 : items.Max(i => i.RarityTier),
             ActorIsHero = true,
             ActorId = actor.Id,
         };
@@ -165,6 +167,7 @@ public static class IdleEngine
             Items = s.Reel.Items,
             Combo = s.Reel.Combo,
             Multiplier = s.Reel.Multiplier,
+            MaxRarityTier = s.Reel.MaxRarityTier,
             ActorIsHero = false,
             ActorId = attacker.Id,
             TargetId = victim.Id,
@@ -227,6 +230,46 @@ public static class IdleEngine
 
         return (draw, Evaluate(draw), Multiplier(Evaluate(draw)));
     }
+
+    private static List<ReelItem> BuildReelItems(IReadOnlyList<string> kinds, HeroState actor)
+    {
+        var items = new List<ReelItem>(kinds.Count);
+        foreach (var kind in kinds)
+        {
+            var shape = ShapeFor(kind, actor.Archetype);
+            var slotIndex = Math.Max(0, actor.SlotKinds.IndexOf(kind));
+            var tier = RarityTierFor(actor.Level, slotIndex);
+            var (primary, passives) = ItemPower.Resolve(shape, tier, actor.Level);
+            items.Add(new ReelItem
+            {
+                Kind = kind,
+                Shape = shape,
+                RarityTier = tier,
+                Rarity = ItemPower.RarityName(tier),
+                Primary = primary,
+                Passives = passives,
+            });
+        }
+        return items;
+    }
+
+    private static string ShapeFor(string kind, string archetype) => kind switch
+    {
+        "mainWeapon" => archetype switch
+        {
+            "magic" or "support" => "staff",
+            "physical" => "bow",
+            _ => "sword",
+        },
+        "secondaryWeapon" => "shield",
+        "amulet" => "amulet",
+        "earring1" or "earring2" => "earring",
+        "ring1" or "ring2" => "ring",
+        _ => "sword",
+    };
+
+    private static int RarityTierFor(int level, int slotIndex) =>
+        Math.Clamp(2 + (int)Math.Round(level * 0.9) + (slotIndex % 3), 1, 21);
 
     private static string Evaluate(IReadOnlyList<string> draw)
     {
@@ -373,7 +416,13 @@ public static class IdleEngine
                 e.Id, e.Kind,
                 e.MaxHp <= 0 ? 0 : Math.Clamp(e.Hp / e.MaxHp, 0, 1),
                 e.Hp > 0, e.IsBoss, e.Id == hitEnemyId)).ToList(),
-            Reel: new ReelView(s.Reel.Items, s.Reel.Combo, s.Reel.Multiplier, s.Reel.ActorIsHero),
+            Reel: new ReelView(
+                s.Reel.Items.Select(it => new ReelItemView(
+                    it.Kind, it.Shape, it.RarityTier, it.Rarity, it.Primary, it.Passives)).ToList(),
+                s.Reel.Combo,
+                s.Reel.Multiplier,
+                s.Reel.MaxRarityTier,
+                s.Reel.ActorIsHero),
             Outcome: s.Outcome,
             Status: s.Status);
     }

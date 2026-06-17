@@ -37,7 +37,16 @@ public sealed record EnemyView(
     bool Hit);
 
 public sealed record ReelView(
-    IReadOnlyList<string> Items,
+    IReadOnlyList<ReelItemView> Items,
     string Combo,
     double Multiplier,
+    int MaxRarityTier,
     bool ActorIsHero);
+
+public sealed record ReelItemView(
+    string Kind,
+    string Shape,
+    int RarityTier,
+    string Rarity,
+    string Primary,
+    IReadOnlyList<string> Passives);

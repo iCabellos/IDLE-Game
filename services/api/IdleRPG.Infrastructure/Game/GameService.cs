@@ -5,7 +5,9 @@ using IdleRPG.Domain.Entities;
 using IdleRPG.Domain.Enums;
 using IdleRPG.Domain.GameData;
 using IdleRPG.Domain.Interfaces;
+using IdleRPG.Infrastructure.Persistence;
 using IdleRPG.Infrastructure.Persistence.Seed;
+using Microsoft.EntityFrameworkCore;
 
 namespace IdleRPG.Infrastructure.Game;
 
@@ -25,12 +27,18 @@ public sealed class GameService : IGameService
     private readonly IRepository<GameRun> _runs;
     private readonly IRepository<Character> _characters;
     private readonly IUnitOfWork _uow;
+    private readonly AppDbContext _db;
 
-    public GameService(IRepository<GameRun> runs, IRepository<Character> characters, IUnitOfWork uow)
+    public GameService(
+        IRepository<GameRun> runs,
+        IRepository<Character> characters,
+        IUnitOfWork uow,
+        AppDbContext db)
     {
         _runs = runs;
         _characters = characters;
         _uow = uow;
+        _db = db;
     }
 
     public Task<GameSnapshot> GetPreviewStateAsync(CancellationToken ct = default)
@@ -43,7 +51,18 @@ public sealed class GameService : IGameService
 
         if (run is null)
         {
-            run = await CreateRunAsync(userId, now, ct);
+            try
+            {
+                run = await CreateRunAsync(userId, now, ct);
+            }
+            catch (DbUpdateException)
+            {
+                // Lost a creation race with a concurrent request; drop the
+                // failed insert and read the run the winner committed.
+                _db.ChangeTracker.Clear();
+                run = await _runs.FirstOrDefaultAsync(new GameRunByUserSpec(userId), ct)
+                      ?? throw new InvalidOperationException("Game run missing after creation race.");
+            }
         }
         else if (Advance(run, now))
         {

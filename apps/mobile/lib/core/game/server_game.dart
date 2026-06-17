@@ -62,23 +62,55 @@ class ServerEnemy {
       );
 }
 
+class ServerReelItem {
+  ServerReelItem({
+    required this.kind,
+    required this.shape,
+    required this.rarityTier,
+    required this.rarity,
+    required this.primary,
+    required this.passives,
+  });
+
+  final String kind;
+  final String shape;
+  final int rarityTier;
+  final String rarity;
+  final String primary;
+  final List<String> passives;
+
+  factory ServerReelItem.fromJson(Map<String, dynamic> j) => ServerReelItem(
+        kind: j['kind'] as String,
+        shape: j['shape'] as String,
+        rarityTier: (j['rarityTier'] as num).toInt(),
+        rarity: j['rarity'] as String,
+        primary: j['primary'] as String,
+        passives: (j['passives'] as List).map((e) => e as String).toList(),
+      );
+}
+
 class ServerReel {
   ServerReel({
     required this.items,
     required this.combo,
     required this.multiplier,
+    required this.maxRarityTier,
     required this.actorIsHero,
   });
 
-  final List<String> items;
+  final List<ServerReelItem> items;
   final String combo;
   final double multiplier;
+  final int maxRarityTier;
   final bool actorIsHero;
 
   factory ServerReel.fromJson(Map<String, dynamic> j) => ServerReel(
-        items: (j['items'] as List).map((e) => e as String).toList(),
+        items: (j['items'] as List)
+            .map((e) => ServerReelItem.fromJson(e as Map<String, dynamic>))
+            .toList(),
         combo: j['combo'] as String,
         multiplier: (j['multiplier'] as num).toDouble(),
+        maxRarityTier: (j['maxRarityTier'] as num).toInt(),
         actorIsHero: j['actorIsHero'] as bool,
       );
 }

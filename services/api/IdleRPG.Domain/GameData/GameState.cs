@@ -47,10 +47,22 @@ public sealed class EnemyState
 
 public sealed class ReelState
 {
-    public List<string> Items { get; set; } = new();
+    public List<ReelItem> Items { get; set; } = new();
     public string Combo { get; set; } = "MIXED";
     public double Multiplier { get; set; } = 1;
+    public int MaxRarityTier { get; set; } = 1;
     public bool ActorIsHero { get; set; } = true;
     public string? ActorId { get; set; }
     public string? TargetId { get; set; }
+}
+
+/// <summary>One item shown in a reel position, with its resolved benefit.</summary>
+public sealed class ReelItem
+{
+    public string Kind { get; set; } = string.Empty;
+    public string Shape { get; set; } = "sword";
+    public int RarityTier { get; set; } = 1;
+    public string Rarity { get; set; } = "Broken";
+    public string Primary { get; set; } = string.Empty;
+    public List<string> Passives { get; set; } = new();
 }
