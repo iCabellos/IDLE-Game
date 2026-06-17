@@ -126,6 +126,7 @@ public static class IdleEngine
             ActorIsHero = true,
             ActorId = actor.Id,
             Damage = breakdown,
+            Ledger = BuildLedger(actor, items),
         };
         s.Outcome = combo;
 
@@ -255,6 +256,7 @@ public static class IdleEngine
                 PrimaryStat = r.PrimaryStat.ToString(),
                 PrimaryValue = r.PrimaryValue,
                 Passives = r.Passives,
+                Perks = r.Perks.Select(p => new ReelPerk { Stat = p.Stat, Value = p.Value }).ToList(),
             });
         }
         return items;
@@ -387,6 +389,44 @@ public static class IdleEngine
             _ => 18.0,
         };
         return baseOffense * (1 + 0.12 * (h.Level - 1));
+    }
+
+    private static Dictionary<ItemPower.Stat, double> BaseSubStats(string archetype) => new()
+    {
+        [ItemPower.Stat.CritRate] = archetype == "critDamage" ? 0.08 : archetype == "physical" ? 0.06 : 0.04,
+        [ItemPower.Stat.CritDmg] = archetype == "critDamage" ? 1.0 : 0.5,
+        [ItemPower.Stat.MagPen] = archetype == "magic" ? 0.05 : 0.0,
+        [ItemPower.Stat.Lifesteal] = archetype == "fury" ? 0.05 : 0.0,
+    };
+
+    /// <summary>
+    /// Walks the rolled items sub-stat by sub-stat, recording each before/after
+    /// change to the hero's running stats (for the client's underline reveal).
+    /// </summary>
+    private static List<SubStatChange> BuildLedger(HeroState actor, List<ReelItem> items)
+    {
+        var running = BaseSubStats(actor.Archetype);
+        var ledger = new List<SubStatChange>();
+        for (var c = 0; c < items.Count; c++)
+        {
+            var it = items[c];
+            for (var l = 0; l < it.Perks.Count; l++)
+            {
+                var perk = it.Perks[l];
+                var before = running.GetValueOrDefault(perk.Stat);
+                var after = before + perk.Value;
+                running[perk.Stat] = after;
+                ledger.Add(new SubStatChange
+                {
+                    Stat = ItemPower.Label(perk.Stat),
+                    Before = ItemPower.FormatValue(perk.Stat, before),
+                    After = ItemPower.FormatValue(perk.Stat, after),
+                    Cell = c,
+                    Line = l,
+                });
+            }
+        }
+        return ledger;
     }
 
     private static double BaseCritRate(string archetype) => archetype switch
@@ -536,7 +576,10 @@ public static class IdleEngine
                         s.Reel.Damage.Crit,
                         s.Reel.Damage.Steps
                             .Select(st => new DamageStepView(st.Label, st.Total, st.Kind))
-                            .ToList())),
+                            .ToList()),
+                s.Reel.Ledger
+                    .Select(x => new SubStatView(x.Stat, x.Before, x.After, x.Cell, x.Line))
+                    .ToList()),
             Outcome: s.Outcome,
             Status: s.Status);
     }

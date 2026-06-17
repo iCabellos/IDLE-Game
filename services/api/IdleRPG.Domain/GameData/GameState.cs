@@ -57,6 +57,21 @@ public sealed class ReelState
 
     /// <summary>The transparent damage calculation for the acting hero's turn.</summary>
     public DamageBreakdown? Damage { get; set; }
+
+    /// <summary>
+    /// Ordered before/after changes to the acting hero's sub-attributes, one per
+    /// buff applied (walked sub-stat by sub-stat by the client).
+    /// </summary>
+    public List<SubStatChange> Ledger { get; set; } = new();
+}
+
+public sealed class SubStatChange
+{
+    public string Stat { get; set; } = string.Empty;
+    public string Before { get; set; } = string.Empty;
+    public string After { get; set; } = string.Empty;
+    public int Cell { get; set; }   // which reel cell (0-2)
+    public int Line { get; set; }   // which passive line within that cell
 }
 
 /// <summary>One item shown in a reel position, with its resolved benefit.</summary>
@@ -70,6 +85,13 @@ public sealed class ReelItem
     public string PrimaryStat { get; set; } = "PhysAtk";
     public double PrimaryValue { get; set; }
     public List<string> Passives { get; set; } = new();
+    public List<ReelPerk> Perks { get; set; } = new();
+}
+
+public sealed class ReelPerk
+{
+    public ItemPower.Stat Stat { get; set; }
+    public double Value { get; set; }
 }
 
 /// <summary>Step-by-step damage so the client can show exactly how it adds up.</summary>

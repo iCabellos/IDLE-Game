@@ -23,7 +23,9 @@ public static class ItemPower
         Stat.EffectHit, Stat.EffectRes, Stat.Heal, Stat.Reflect,
     };
 
-    private static string Label(Stat s) => s switch
+    public static bool IsPercent(Stat s) => Percent.Contains(s);
+
+    public static string Label(Stat s) => s switch
     {
         Stat.PhysAtk => "Phys Atk",
         Stat.MagAtk => "Mag Atk",
@@ -52,9 +54,12 @@ public static class ItemPower
         _ => s.ToString(),
     };
 
-    private static string Describe(Stat s, double v) => Percent.Contains(s)
-        ? $"+{(v * 100).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)}% {Label(s)}"
-        : $"+{Math.Round(v)} {Label(s)}";
+    /// <summary>Formats a stat value (no sign): "5.5%" or "12".</summary>
+    public static string FormatValue(Stat s, double v) => Percent.Contains(s)
+        ? $"{(v * 100).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)}%"
+        : Math.Round(v).ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    private static string Describe(Stat s, double v) => $"+{FormatValue(s, v)} {Label(s)}";
 
     private static readonly double[] RarityPow =
     {
@@ -125,7 +130,10 @@ public static class ItemPower
 
     public static bool IsDamageStat(Stat s) => s is Stat.PhysAtk or Stat.MagAtk;
 
-    public sealed record Resolved(Stat PrimaryStat, double PrimaryValue, string Primary, List<string> Passives);
+    public sealed record Perk(Stat Stat, double Value);
+
+    public sealed record Resolved(
+        Stat PrimaryStat, double PrimaryValue, string Primary, List<string> Passives, List<Perk> Perks);
 
     /// <summary>Resolves an item into its headline stat (typed + value) + buff list.</summary>
     public static Resolved Resolve(string shape, int tier, int level)
@@ -142,16 +150,18 @@ public static class ItemPower
         }
 
         var passives = new List<string>();
+        var perks = new List<Perk>();
         for (var t = 2; t <= tier; t++)
         {
             var stat = spec.Track[(t - 2) % spec.Track.Length];
             var v = PerkBase[stat] * RarityPow[t - 1];
             stats[stat] = stats.GetValueOrDefault(stat) + v;
             passives.Add(Describe(stat, v));
+            perks.Add(new Perk(stat, v));
         }
 
         var primaryStat = spec.Base.Keys.First();
         var primaryValue = stats[primaryStat];
-        return new Resolved(primaryStat, primaryValue, Describe(primaryStat, primaryValue), passives);
+        return new Resolved(primaryStat, primaryValue, Describe(primaryStat, primaryValue), passives, perks);
     }
 }

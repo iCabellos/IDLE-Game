@@ -42,7 +42,10 @@ public sealed record ReelView(
     double Multiplier,
     int MaxRarityTier,
     bool ActorIsHero,
-    DamageView? Damage);
+    DamageView? Damage,
+    IReadOnlyList<SubStatView> Ledger);
+
+public sealed record SubStatView(string Stat, string Before, string After, int Cell, int Line);
 
 public sealed record ReelItemView(
     string Kind,

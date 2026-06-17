@@ -129,6 +129,30 @@ class ServerDamage {
       );
 }
 
+class ServerSubStat {
+  ServerSubStat({
+    required this.stat,
+    required this.before,
+    required this.after,
+    required this.cell,
+    required this.line,
+  });
+
+  final String stat;
+  final String before;
+  final String after;
+  final int cell;
+  final int line;
+
+  factory ServerSubStat.fromJson(Map<String, dynamic> j) => ServerSubStat(
+        stat: j['stat'] as String,
+        before: j['before'] as String,
+        after: j['after'] as String,
+        cell: (j['cell'] as num).toInt(),
+        line: (j['line'] as num).toInt(),
+      );
+}
+
 class ServerReel {
   ServerReel({
     required this.items,
@@ -137,6 +161,7 @@ class ServerReel {
     required this.maxRarityTier,
     required this.actorIsHero,
     required this.damage,
+    required this.ledger,
   });
 
   final List<ServerReelItem> items;
@@ -145,6 +170,7 @@ class ServerReel {
   final int maxRarityTier;
   final bool actorIsHero;
   final ServerDamage? damage;
+  final List<ServerSubStat> ledger;
 
   factory ServerReel.fromJson(Map<String, dynamic> j) => ServerReel(
         items: (j['items'] as List)
@@ -157,6 +183,9 @@ class ServerReel {
         damage: j['damage'] == null
             ? null
             : ServerDamage.fromJson(j['damage'] as Map<String, dynamic>),
+        ledger: ((j['ledger'] as List?) ?? const [])
+            .map((e) => ServerSubStat.fromJson(e as Map<String, dynamic>))
+            .toList(),
       );
 }
 

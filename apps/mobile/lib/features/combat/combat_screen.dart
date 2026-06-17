@@ -14,7 +14,10 @@ import '../../core/pixel/sprites.dart';
 const _pixelFont = 'monospace';
 
 // Fixed reel cell height (sized for the max buff list, never dynamic).
-const double _cellHeight = 156;
+const double _cellHeight = 168;
+
+/// Shared turn pace so the reel underline and the head total stay in sync.
+int _turnMs(int ledgerLen) => (700 + ledgerLen * 110).clamp(1700, 2900);
 
 TextStyle _retro(double size,
         {Color color = const Color(0xFFF1F5F9), FontWeight w = FontWeight.w700}) =>
@@ -71,13 +74,6 @@ ItemShape _shape(String s) => switch (s) {
 
 Color _rarityColor(int tier) =>
     Rarity.values[(tier - 1).clamp(0, Rarity.values.length - 1)].color;
-
-Color _stepColor(String kind) => switch (kind) {
-      'combo' => const Color(0xFFA78BFA),
-      'crit' => const Color(0xFFFFD700),
-      'info' => const Color(0xFF8FB3D9),
-      _ => const Color(0xFFCFE3F5),
-    };
 
 class CombatScreen extends StatefulWidget {
   const CombatScreen({super.key});
@@ -348,7 +344,11 @@ class _Stage extends StatelessWidget {
                         acting: hero.acting,
                         trigger: hero.acting ? snap.tick : 0,
                         overlay: (hero.acting && dmg != null)
-                            ? _DamagePopup(key: ValueKey(snap.tick), dmg: dmg)
+                            ? _DamagePopup(
+                                key: ValueKey(snap.tick),
+                                dmg: dmg,
+                                ledger: snap.reel.ledger,
+                              )
                             : null,
                       ),
                     ),
@@ -469,7 +469,7 @@ class _UnitState extends State<_Unit> with TickerProviderStateMixin {
           child: IgnorePointer(
             child: Align(
               alignment: Alignment.topCenter,
-              child: Transform.translate(offset: const Offset(0, -52), child: widget.overlay),
+              child: Transform.translate(offset: const Offset(0, -10), child: widget.overlay),
             ),
           ),
         ),
@@ -533,12 +533,13 @@ class _HpBar extends StatelessWidget {
   }
 }
 
-/// Above the acting hero's head: ONLY the running total (counts up 1-by-1),
-/// with the just-applied contributions fading out as a small stack above it.
+/// Above the acting hero: ONLY the running total (counts up, no card/border),
+/// rising as the just-applied sub-stat before->after rows stack below it.
 class _DamagePopup extends StatefulWidget {
-  const _DamagePopup({super.key, required this.dmg});
+  const _DamagePopup({super.key, required this.dmg, required this.ledger});
 
   final ServerDamage dmg;
+  final List<ServerSubStat> ledger;
 
   @override
   State<_DamagePopup> createState() => _DamagePopupState();
@@ -550,9 +551,10 @@ class _DamagePopupState extends State<_DamagePopup> with SingleTickerProviderSta
   @override
   void initState() {
     super.initState();
-    // +0.5s slower overall, ~0.65s per applied step.
-    final ms = 600 + widget.dmg.steps.length * 650;
-    _ctrl = AnimationController(vsync: this, duration: Duration(milliseconds: ms))..forward();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: _turnMs(widget.ledger.length)),
+    )..forward();
   }
 
   @override
@@ -569,57 +571,59 @@ class _DamagePopupState extends State<_DamagePopup> with SingleTickerProviderSta
     return AnimatedBuilder(
       animation: _ctrl,
       builder: (context, _) {
+        final v = _ctrl.value;
+
+        // Running total counts up through the breakdown steps.
         final segs = steps.length;
-        final pos = (_ctrl.value * (segs - 1)).clamp(0.0, (segs - 1).toDouble());
+        final pos = (v * (segs - 1)).clamp(0.0, (segs - 1).toDouble());
         final i = pos.floor().clamp(0, segs - 1);
         final frac = (pos - i).clamp(0.0, 1.0);
         final to = steps[min(i + 1, segs - 1)].total;
         final shown = (steps[i].total + (to - steps[i].total) * frac).round();
+        final finalCrit = widget.dmg.crit && v > 0.92;
+        final numColor = finalCrit ? const Color(0xFFFFD700) : const Color(0xFFF1F5F9);
 
-        final atCrit = steps[i].kind == 'crit' || (i + 1 < segs && steps[i + 1].kind == 'crit' && frac > 0.4);
-        final finalCrit = widget.dmg.crit && _ctrl.value > 0.92;
-        final numColor = (atCrit || finalCrit) ? const Color(0xFFFFD700) : const Color(0xFFF1F5F9);
-
-        // The contributions applied so far, newest first, fading with age.
-        final appliedUpTo = (i + (frac > 0.5 ? 1 : 0)).clamp(0, segs - 1);
-        final chips = <Widget>[];
-        for (var k = appliedUpTo; k >= 1 && chips.length < 3; k--) {
-          final age = chips.length;
-          chips.add(Opacity(
-            opacity: [1.0, 0.5, 0.25][age],
-            child: Text(steps[k].label,
-                style: _retro(7.5, color: _stepColor(steps[k].kind), w: FontWeight.w900),
+        // The last few sub-stat changes, newest just under the total, fading.
+        final led = widget.ledger;
+        final idx = led.isEmpty ? -1 : (v * led.length).floor().clamp(0, led.length - 1);
+        final rows = <Widget>[];
+        for (var k = idx; k >= 0 && rows.length < 3; k--) {
+          final age = rows.length;
+          final s = led[k];
+          rows.add(Opacity(
+            opacity: const [1.0, 0.5, 0.25][age],
+            child: Text('${s.stat}  ${s.before} -> ${s.after}',
+                style: _retro(7.5, color: const Color(0xFF6EE7B7), w: FontWeight.w900),
                 maxLines: 1),
           ));
         }
 
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ...chips,
-            const SizedBox(height: 2),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xE60A0F18),
-                border: Border.all(color: numColor, width: 2),
-                borderRadius: BorderRadius.circular(4),
-                boxShadow: [BoxShadow(color: numColor.withValues(alpha: 0.55), blurRadius: finalCrit ? 16 : 7)],
-              ),
-              child: Text('$shown',
-                  style: _retro(finalCrit ? 20 : 16, color: numColor, w: FontWeight.w900)),
-            ),
-            if (finalCrit)
-              Text('CRIT!!', style: _retro(11, color: const Color(0xFFFFD700), w: FontWeight.w900)),
-          ],
+        return Transform.translate(
+          // Rise upward as rows stack below the total.
+          offset: Offset(0, -rows.length * 11.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('$shown',
+                  style: _retro(finalCrit ? 22 : 17, color: numColor, w: FontWeight.w900).copyWith(
+                    shadows: const [
+                      Shadow(color: Colors.black, blurRadius: 4, offset: Offset(1, 1)),
+                      Shadow(color: Colors.black, blurRadius: 8),
+                    ],
+                  )),
+              if (finalCrit)
+                Text('CRIT!!', style: _retro(12, color: const Color(0xFFFFD700), w: FontWeight.w900)),
+              ...rows,
+            ],
+          ),
         );
       },
     );
   }
 }
 
-/// Fixed-size 1x3 reel. Items roll in, dissolve into their full buff list, and a
-/// scan light sweeps each sub-attribute.
+/// Fixed-size 1x3 reel. Items roll in, dissolve into their full buff list, and
+/// an underline walks the sub-attributes one by one in sync with the total.
 class _Reel extends StatefulWidget {
   const _Reel({required this.snap});
 
@@ -629,29 +633,30 @@ class _Reel extends StatefulWidget {
   State<_Reel> createState() => _ReelState();
 }
 
-class _ReelState extends State<_Reel> with TickerProviderStateMixin {
-  late final AnimationController _roll;
-  late final AnimationController _scan;
+class _ReelState extends State<_Reel> with SingleTickerProviderStateMixin {
+  late final AnimationController _turn;
 
   @override
   void initState() {
     super.initState();
-    _roll = AnimationController(vsync: this, duration: const Duration(milliseconds: 1800))..forward();
-    _scan = AnimationController(vsync: this, duration: const Duration(milliseconds: 2600))..repeat();
+    _turn = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: _turnMs(widget.snap.reel.ledger.length)),
+    )..forward();
   }
 
   @override
   void didUpdateWidget(_Reel old) {
     super.didUpdateWidget(old);
     if (widget.snap.tick != old.snap.tick) {
-      _roll.forward(from: 0);
+      _turn.duration = Duration(milliseconds: _turnMs(widget.snap.reel.ledger.length));
+      _turn.forward(from: 0);
     }
   }
 
   @override
   void dispose() {
-    _roll.dispose();
-    _scan.dispose();
+    _turn.dispose();
     super.dispose();
   }
 
@@ -687,20 +692,28 @@ class _ReelState extends State<_Reel> with TickerProviderStateMixin {
           SizedBox(
             height: _cellHeight,
             child: AnimatedBuilder(
-              animation: Listenable.merge([_roll, _scan]),
-              builder: (context, _) => Row(
-                children: [
-                  for (var i = 0; i < 3; i++)
-                    Expanded(
-                      child: _Cell(
-                        item: i < items.length ? items[i] : null,
-                        roll: _roll.value,
-                        scan: _scan.value,
-                        index: i,
+              animation: _turn,
+              builder: (context, _) {
+                final v = _turn.value;
+                final led = reel.ledger;
+                final idx = led.isEmpty ? -1 : (v * led.length).floor().clamp(0, led.length - 1);
+                final curCell = idx >= 0 ? led[idx].cell : -1;
+                final curLine = idx >= 0 ? led[idx].line : -1;
+
+                return Row(
+                  children: [
+                    for (var i = 0; i < 3; i++)
+                      Expanded(
+                        child: _Cell(
+                          item: i < items.length ? items[i] : null,
+                          roll: v,
+                          index: i,
+                          highlightLine: curCell == i ? curLine : -1,
+                        ),
                       ),
-                    ),
-                ],
-              ),
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -710,17 +723,17 @@ class _ReelState extends State<_Reel> with TickerProviderStateMixin {
 }
 
 class _Cell extends StatelessWidget {
-  const _Cell({required this.item, required this.roll, required this.scan, required this.index});
+  const _Cell({required this.item, required this.roll, required this.index, required this.highlightLine});
 
   final ServerReelItem? item;
   final double roll;
-  final double scan;
   final int index;
+  final int highlightLine;
 
-  static const _appearStagger = 0.16;
-  static const _appearDur = 0.18;
-  static const _textStart = 0.55;
-  static const _textEnd = 0.74;
+  static const _appearStagger = 0.10;
+  static const _appearDur = 0.12;
+  static const _textStart = 0.34;
+  static const _textEnd = 0.46;
 
   @override
   Widget build(BuildContext context) {
@@ -737,42 +750,20 @@ class _Cell extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF111B2C),
         border: Border.all(color: ci > 0.9 ? color : const Color(0xFF1F2D44), width: ci > 0.9 ? 2 : 1),
-        boxShadow: ci > 0.9 ? [BoxShadow(color: color.withValues(alpha: 0.35), blurRadius: 6)] : null,
+        boxShadow: ci > 0.9 ? [BoxShadow(color: color.withValues(alpha: 0.3), blurRadius: 6)] : null,
       ),
       clipBehavior: Clip.hardEdge,
       child: it == null
           ? const SizedBox.shrink()
           : Stack(
               children: [
-                // Benefit list (fills the fixed cell).
                 Padding(
                   padding: const EdgeInsets.all(5),
-                  child: Opacity(opacity: textT, child: _Benefit(item: it, color: color)),
-                ),
-                // Scan light sweeping the sub-attributes.
-                if (textT > 0.6)
-                  Positioned(
-                    top: scan * (_cellHeight - 14),
-                    left: 0,
-                    right: 0,
-                    height: 14,
-                    child: IgnorePointer(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              color.withValues(alpha: 0.0),
-                              color.withValues(alpha: 0.35),
-                              color.withValues(alpha: 0.0),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+                  child: Opacity(
+                    opacity: textT,
+                    child: _Benefit(item: it, color: color, highlightLine: highlightLine),
                   ),
-                // Icon rolls in over the benefit area.
+                ),
                 Positioned.fill(
                   child: IgnorePointer(
                     child: Opacity(
@@ -797,10 +788,11 @@ class _Cell extends StatelessWidget {
 }
 
 class _Benefit extends StatelessWidget {
-  const _Benefit({required this.item, required this.color});
+  const _Benefit({required this.item, required this.color, required this.highlightLine});
 
   final ServerReelItem item;
   final Color color;
+  final int highlightLine;
 
   @override
   Widget build(BuildContext context) {
@@ -813,9 +805,39 @@ class _Benefit extends StatelessWidget {
         Text(item.primary.toUpperCase(),
             style: _retro(8.5, color: const Color(0xFFF1F5F9), w: FontWeight.w900), maxLines: 2),
         const SizedBox(height: 2),
-        for (final b in item.passives)
-          Text(b, style: _retro(6.5, color: const Color(0xFF9FB3CC)), maxLines: 1, overflow: TextOverflow.ellipsis),
+        for (var l = 0; l < item.passives.length; l++)
+          _PassiveLine(text: item.passives[l], color: color, lit: l == highlightLine),
       ],
+    );
+  }
+}
+
+class _PassiveLine extends StatelessWidget {
+  const _PassiveLine({required this.text, required this.color, required this.lit});
+
+  final String text;
+  final Color color;
+  final bool lit;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 120),
+      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 0.5),
+      decoration: lit
+          ? BoxDecoration(
+              color: color.withValues(alpha: 0.30),
+              border: Border(left: BorderSide(color: color, width: 2)),
+            )
+          : null,
+      child: Text(
+        text,
+        style: _retro(6.5,
+            color: lit ? const Color(0xFFF1F5F9) : const Color(0xFF9FB3CC),
+            w: lit ? FontWeight.w900 : FontWeight.w700),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
     );
   }
 }
