@@ -11,7 +11,7 @@ class AppShell extends StatelessWidget {
   final String currentPath;
 
   static const _tabs = [
-    (path: '/dashboard', icon: Icons.home_rounded, label: 'Home'),
+    (path: '/battle', icon: Icons.sports_kabaddi_rounded, label: 'Battle'),
     (path: '/inventory', icon: Icons.backpack_rounded, label: 'Inventory'),
     (path: '/widget', icon: Icons.widgets_rounded, label: 'Widget'),
   ];
