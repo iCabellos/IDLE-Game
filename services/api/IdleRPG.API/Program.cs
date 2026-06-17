@@ -8,6 +8,7 @@ using IdleRPG.API.Middleware;
 using IdleRPG.Application;
 using IdleRPG.Infrastructure;
 using IdleRPG.Infrastructure.Configuration;
+using IdleRPG.Infrastructure.Game;
 using IdleRPG.Infrastructure.Persistence;
 using IdleRPG.Infrastructure.Persistence.Seed;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -262,6 +263,8 @@ app.MapHealthChecks("/health", new HealthCheckOptions
 // ---------------------------------------------------------------------
 app.MapAuthEndpoints();
 app.MapItemEndpoints();
+app.MapCatalogEndpoints();
+app.MapGameEndpoints();
 
 var hangfireUser = builder.Configuration["HANGFIRE_DASHBOARD_USER"];
 var hangfirePass = builder.Configuration["HANGFIRE_DASHBOARD_PASS"];
@@ -272,6 +275,15 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
         ? new[] { new HangfireDashboardAuthFilter(hangfireUser, hangfirePass) }
         : Array.Empty<IDashboardAuthorizationFilter>()
 });
+
+// ---------------------------------------------------------------------
+// Recurring idle tick: advances every run server-side, 24/7, even with no
+// client connected. (Sub-minute live progression is handled lazily on read.)
+// ---------------------------------------------------------------------
+RecurringJob.AddOrUpdate<IdleTickJob>(
+    "idle-tick",
+    job => job.RunAsync(CancellationToken.None),
+    Cron.Minutely);
 
 app.Run();
 

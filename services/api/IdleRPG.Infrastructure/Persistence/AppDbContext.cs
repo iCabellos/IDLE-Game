@@ -22,6 +22,7 @@ public class AppDbContext : DbContext
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<AntiBotEvent> AntiBotEvents => Set<AntiBotEvent>();
     public DbSet<SetBonus> SetBonuses => Set<SetBonus>();
+    public DbSet<GameRun> GameRuns => Set<GameRun>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

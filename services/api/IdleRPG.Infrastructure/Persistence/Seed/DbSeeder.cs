@@ -12,5 +12,6 @@ public static class DbSeeder
 
         await ItemSeed.SeedAsync(context, ct);
         await SetBonusSeed.SeedAsync(context, ct);
+        await GameSeed.SeedAsync(context, ct);
     }
 }
