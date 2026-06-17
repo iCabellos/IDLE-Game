@@ -13,6 +13,9 @@ import '../../core/pixel/sprites.dart';
 
 const _pixelFont = 'monospace';
 
+// Fixed reel cell height (sized for the max buff list, never dynamic).
+const double _cellHeight = 156;
+
 TextStyle _retro(double size,
         {Color color = const Color(0xFFF1F5F9), FontWeight w = FontWeight.w700}) =>
     TextStyle(
@@ -73,7 +76,7 @@ Color _stepColor(String kind) => switch (kind) {
       'combo' => const Color(0xFFA78BFA),
       'crit' => const Color(0xFFFFD700),
       'info' => const Color(0xFF8FB3D9),
-      _ => const Color(0xFFF1F5F9),
+      _ => const Color(0xFFCFE3F5),
     };
 
 class CombatScreen extends StatefulWidget {
@@ -93,7 +96,7 @@ class _CombatScreenState extends State<CombatScreen> {
   void initState() {
     super.initState();
     _poll();
-    _timer = Timer.periodic(const Duration(milliseconds: 1800), (_) => _poll());
+    _timer = Timer.periodic(const Duration(milliseconds: 2500), (_) => _poll());
   }
 
   Future<void> _poll() async {
@@ -272,7 +275,7 @@ class _Pips extends StatelessWidget {
   }
 }
 
-/// Stepped arena: team along the bottom, the enemy wave one step above, facing.
+/// Allies front-left, enemy wave back-right (a step higher, on the ground line).
 class _Stage extends StatelessWidget {
   const _Stage({required this.snap});
 
@@ -284,42 +287,39 @@ class _Stage extends StatelessWidget {
       builder: (context, c) {
         final h = c.maxHeight;
         final w = c.maxWidth;
-        final heroH = min(h * 0.28, w * 0.14);
-        final bossH = min(h * 0.46, w * 0.30);
-
-        final actingIdx = snap.heroes.indexWhere((x) => x.acting);
+        final heroH = min(h * 0.30, w * 0.15);
+        final bossH = min(h * 0.50, w * 0.32);
         final dmg = snap.reel.damage;
-        final showDmg = dmg != null && actingIdx >= 0;
-        final dmgX = (actingIdx - (snap.heroes.length - 1) / 2.0) * 0.34;
 
         return Stack(
           fit: StackFit.expand,
           children: [
             StageBackground(theme: _theme(snap.theme)),
 
-            // Enemy wave — one step above the team, centred (facing down).
+            // Enemy wave: right side, a little above the allies' baseline.
             Align(
-              alignment: const Alignment(0, -0.05),
+              alignment: const Alignment(0.96, 0.66),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   for (final enemy in snap.enemies)
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 3),
                       child: AnimatedOpacity(
                         opacity: enemy.alive ? 1 : 0,
                         duration: const Duration(milliseconds: 400),
                         child: _Unit(
                           key: ValueKey(enemy.id),
                           art: Sprites.enemy(_enemy(enemy.kind)),
-                          height: enemy.isBoss ? bossH : heroH,
+                          height: enemy.isBoss ? bossH : heroH * 0.92,
                           flipX: true,
                           hpFraction: enemy.hpFraction,
                           alive: enemy.alive,
                           level: null,
                           acting: false,
                           trigger: enemy.hit ? snap.tick : 0,
+                          overlay: null,
                         ),
                       ),
                     ),
@@ -327,16 +327,16 @@ class _Stage extends StatelessWidget {
               ),
             ),
 
-            // Team — along the bottom, centred (facing up).
+            // Allies: front-left, on the ground.
             Align(
-              alignment: const Alignment(0, 0.98),
+              alignment: const Alignment(-0.96, 0.98),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   for (final hero in snap.heroes)
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 5),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: _Unit(
                         key: ValueKey(hero.id),
                         art: ItemSprites.roster(_roster(hero.archetype)),
@@ -347,18 +347,14 @@ class _Stage extends StatelessWidget {
                         level: hero.level,
                         acting: hero.acting,
                         trigger: hero.acting ? snap.tick : 0,
+                        overlay: (hero.acting && dmg != null)
+                            ? _DamagePopup(key: ValueKey(snap.tick), dmg: dmg)
+                            : null,
                       ),
                     ),
                 ],
               ),
             ),
-
-            // Running damage total, above whoever is taking the turn.
-            if (showDmg)
-              Align(
-                alignment: Alignment(dmgX.clamp(-0.7, 0.7), 0.34),
-                child: _DamagePopup(key: ValueKey(snap.tick), dmg: dmg),
-              ),
           ],
         );
       },
@@ -377,6 +373,7 @@ class _Unit extends StatefulWidget {
     required this.level,
     required this.acting,
     required this.trigger,
+    required this.overlay,
   });
 
   final PixelArt art;
@@ -387,6 +384,7 @@ class _Unit extends StatefulWidget {
   final int? level;
   final bool acting;
   final int trigger;
+  final Widget? overlay;
 
   @override
   State<_Unit> createState() => _UnitState();
@@ -421,7 +419,7 @@ class _UnitState extends State<_Unit> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
+    final unit = AnimatedBuilder(
       animation: Listenable.merge([_bob, _flash]),
       builder: (context, _) {
         final bobY = widget.alive ? sin(_bob.value * pi) * 2.0 : 0.0;
@@ -458,6 +456,24 @@ class _UnitState extends State<_Unit> with TickerProviderStateMixin {
           ),
         );
       },
+    );
+
+    if (widget.overlay == null) return unit;
+
+    // Float the overlay above the unit's head without affecting layout.
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        unit,
+        Positioned.fill(
+          child: IgnorePointer(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: Transform.translate(offset: const Offset(0, -52), child: widget.overlay),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -499,7 +515,7 @@ class _HpBar extends StatelessWidget {
                 ? const Color(0xFFE3B341)
                 : const Color(0xFFEF4444);
     return Container(
-      width: 40,
+      width: 38,
       height: 6,
       padding: const EdgeInsets.all(1),
       decoration: BoxDecoration(
@@ -517,7 +533,8 @@ class _HpBar extends StatelessWidget {
   }
 }
 
-/// Animated, step-by-step damage total shown above the acting hero.
+/// Above the acting hero's head: ONLY the running total (counts up 1-by-1),
+/// with the just-applied contributions fading out as a small stack above it.
 class _DamagePopup extends StatefulWidget {
   const _DamagePopup({super.key, required this.dmg});
 
@@ -533,7 +550,8 @@ class _DamagePopupState extends State<_DamagePopup> with SingleTickerProviderSta
   @override
   void initState() {
     super.initState();
-    final ms = 350 + widget.dmg.steps.length * 320;
+    // +0.5s slower overall, ~0.65s per applied step.
+    final ms = 600 + widget.dmg.steps.length * 650;
     _ctrl = AnimationController(vsync: this, duration: Duration(milliseconds: ms))..forward();
   }
 
@@ -551,51 +569,57 @@ class _DamagePopupState extends State<_DamagePopup> with SingleTickerProviderSta
     return AnimatedBuilder(
       animation: _ctrl,
       builder: (context, _) {
-        final revealed = (_ctrl.value * steps.length).ceil().clamp(1, steps.length);
-        final cur = steps[revealed - 1];
-        final done = revealed == steps.length;
-        final isCrit = cur.kind == 'crit';
-        final color = _stepColor(cur.kind);
-        final critPct = (widget.dmg.critRate * 100).toStringAsFixed(1);
+        final segs = steps.length;
+        final pos = (_ctrl.value * (segs - 1)).clamp(0.0, (segs - 1).toDouble());
+        final i = pos.floor().clamp(0, segs - 1);
+        final frac = (pos - i).clamp(0.0, 1.0);
+        final to = steps[min(i + 1, segs - 1)].total;
+        final shown = (steps[i].total + (to - steps[i].total) * frac).round();
 
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: const Color(0xE60A0F18),
-            border: Border.all(color: isCrit ? const Color(0xFFFFD700) : color, width: 2),
-            borderRadius: BorderRadius.circular(4),
-            boxShadow: [
-              BoxShadow(color: (isCrit ? const Color(0xFFFFD700) : color).withValues(alpha: 0.6),
-                  blurRadius: isCrit ? 18 : 8),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(widget.dmg.heroName.toUpperCase(),
-                  style: _retro(7, color: const Color(0xFF6EE7B7))),
-              const SizedBox(height: 2),
-              Text(cur.label,
-                  style: _retro(8, color: color, w: FontWeight.w900), maxLines: 1),
-              const SizedBox(height: 1),
-              Text('TOTAL ${cur.total.toStringAsFixed(0)}',
-                  style: _retro(isCrit ? 17 : 14,
-                      color: isCrit ? const Color(0xFFFFD700) : const Color(0xFFF1F5F9),
-                      w: FontWeight.w900)),
-              if (done && widget.dmg.crit)
-                Text('CRIT!!',
-                    style: _retro(13, color: const Color(0xFFFFD700), w: FontWeight.w900)),
-              if (done && widget.dmg.critRate > 0)
-                Text('crit $critPct%', style: _retro(7, color: const Color(0xFF8FB3D9))),
-            ],
-          ),
+        final atCrit = steps[i].kind == 'crit' || (i + 1 < segs && steps[i + 1].kind == 'crit' && frac > 0.4);
+        final finalCrit = widget.dmg.crit && _ctrl.value > 0.92;
+        final numColor = (atCrit || finalCrit) ? const Color(0xFFFFD700) : const Color(0xFFF1F5F9);
+
+        // The contributions applied so far, newest first, fading with age.
+        final appliedUpTo = (i + (frac > 0.5 ? 1 : 0)).clamp(0, segs - 1);
+        final chips = <Widget>[];
+        for (var k = appliedUpTo; k >= 1 && chips.length < 3; k--) {
+          final age = chips.length;
+          chips.add(Opacity(
+            opacity: [1.0, 0.5, 0.25][age],
+            child: Text(steps[k].label,
+                style: _retro(7.5, color: _stepColor(steps[k].kind), w: FontWeight.w900),
+                maxLines: 1),
+          ));
+        }
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ...chips,
+            const SizedBox(height: 2),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xE60A0F18),
+                border: Border.all(color: numColor, width: 2),
+                borderRadius: BorderRadius.circular(4),
+                boxShadow: [BoxShadow(color: numColor.withValues(alpha: 0.55), blurRadius: finalCrit ? 16 : 7)],
+              ),
+              child: Text('$shown',
+                  style: _retro(finalCrit ? 20 : 16, color: numColor, w: FontWeight.w900)),
+            ),
+            if (finalCrit)
+              Text('CRIT!!', style: _retro(11, color: const Color(0xFFFFD700), w: FontWeight.w900)),
+          ],
         );
       },
     );
   }
 }
 
-/// The 1x3 reel: items roll in, then dissolve into their full benefit list.
+/// Fixed-size 1x3 reel. Items roll in, dissolve into their full buff list, and a
+/// scan light sweeps each sub-attribute.
 class _Reel extends StatefulWidget {
   const _Reel({required this.snap});
 
@@ -605,26 +629,29 @@ class _Reel extends StatefulWidget {
   State<_Reel> createState() => _ReelState();
 }
 
-class _ReelState extends State<_Reel> with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
+class _ReelState extends State<_Reel> with TickerProviderStateMixin {
+  late final AnimationController _roll;
+  late final AnimationController _scan;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1300))..forward();
+    _roll = AnimationController(vsync: this, duration: const Duration(milliseconds: 1800))..forward();
+    _scan = AnimationController(vsync: this, duration: const Duration(milliseconds: 2600))..repeat();
   }
 
   @override
   void didUpdateWidget(_Reel old) {
     super.didUpdateWidget(old);
     if (widget.snap.tick != old.snap.tick) {
-      _ctrl.forward(from: 0);
+      _roll.forward(from: 0);
     }
   }
 
   @override
   void dispose() {
-    _ctrl.dispose();
+    _roll.dispose();
+    _scan.dispose();
     super.dispose();
   }
 
@@ -642,85 +669,110 @@ class _ReelState extends State<_Reel> with SingleTickerProviderStateMixin {
         color: Color(0xFF0A111E),
         border: Border(top: BorderSide(color: Color(0xFF1F2D44), width: 2)),
       ),
-      child: AnimatedBuilder(
-        animation: _ctrl,
-        builder: (context, _) {
-          final v = _ctrl.value;
-          return Column(
-            mainAxisSize: MainAxisSize.min,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              Text(dmg != null ? 'TURN  ${dmg.heroName.toUpperCase()}' : 'SLOT REEL',
+                  style: _retro(9, color: const Color(0xFF6EE7B7))),
+              Text(isPrize ? '${reel.combo}  x${reel.multiplier.toStringAsFixed(0)}' : 'ROLLING',
+                  style: _retro(10,
+                      color: isPrize ? _rarityColor(reel.maxRarityTier) : const Color(0xFF5E7392),
+                      w: FontWeight.w900)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: _cellHeight,
+            child: AnimatedBuilder(
+              animation: Listenable.merge([_roll, _scan]),
+              builder: (context, _) => Row(
                 children: [
-                  Text(
-                    dmg != null ? 'TURN  ${dmg.heroName.toUpperCase()}' : 'SLOT REEL',
-                    style: _retro(9, color: const Color(0xFF6EE7B7)),
-                  ),
-                  Text(
-                    isPrize ? '${reel.combo}  x${reel.multiplier.toStringAsFixed(0)}' : 'ROLLING',
-                    style: _retro(10,
-                        color: isPrize ? _rarityColor(reel.maxRarityTier) : const Color(0xFF5E7392),
-                        w: FontWeight.w900),
-                  ),
+                  for (var i = 0; i < 3; i++)
+                    Expanded(
+                      child: _Cell(
+                        item: i < items.length ? items[i] : null,
+                        roll: _roll.value,
+                        scan: _scan.value,
+                        index: i,
+                      ),
+                    ),
                 ],
               ),
-              const SizedBox(height: 6),
-              IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (var i = 0; i < 3; i++)
-                      Expanded(
-                        child: _Cell(item: i < items.length ? items[i] : null, v: v, index: i),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          );
-        },
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
 class _Cell extends StatelessWidget {
-  const _Cell({required this.item, required this.v, required this.index});
+  const _Cell({required this.item, required this.roll, required this.scan, required this.index});
 
   final ServerReelItem? item;
-  final double v;
+  final double roll;
+  final double scan;
   final int index;
 
-  static const _appearStagger = 0.14;
-  static const _appearDur = 0.16;
-  static const _textStart = 0.52;
-  static const _textEnd = 0.70;
+  static const _appearStagger = 0.16;
+  static const _appearDur = 0.18;
+  static const _textStart = 0.55;
+  static const _textEnd = 0.74;
 
   @override
   Widget build(BuildContext context) {
     final it = item;
     final color = it == null ? const Color(0xFF1F2D44) : _rarityColor(it.rarityTier);
 
-    final ci = ((v - index * _appearStagger) / _appearDur).clamp(0.0, 1.0);
-    final textT = ((v - _textStart) / (_textEnd - _textStart)).clamp(0.0, 1.0);
+    final ci = ((roll - index * _appearStagger) / _appearDur).clamp(0.0, 1.0);
+    final textT = ((roll - _textStart) / (_textEnd - _textStart)).clamp(0.0, 1.0);
     final iconOpacity = ci * (1 - textT);
     final iconScale = 0.55 + 0.45 * ci;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 4),
-      padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
         color: const Color(0xFF111B2C),
         border: Border.all(color: ci > 0.9 ? color : const Color(0xFF1F2D44), width: ci > 0.9 ? 2 : 1),
-        boxShadow: ci > 0.9 ? [BoxShadow(color: color.withValues(alpha: 0.4), blurRadius: 7)] : null,
+        boxShadow: ci > 0.9 ? [BoxShadow(color: color.withValues(alpha: 0.35), blurRadius: 6)] : null,
       ),
+      clipBehavior: Clip.hardEdge,
       child: it == null
-          ? const SizedBox(height: 36)
+          ? const SizedBox.shrink()
           : Stack(
               children: [
-                // Phase 2 (defines the cell height): benefit text, ALL buffs.
-                Opacity(opacity: textT, child: _Benefit(item: it, color: color)),
-                // Phase 1: the item icon rolls in, centred over the benefit area.
+                // Benefit list (fills the fixed cell).
+                Padding(
+                  padding: const EdgeInsets.all(5),
+                  child: Opacity(opacity: textT, child: _Benefit(item: it, color: color)),
+                ),
+                // Scan light sweeping the sub-attributes.
+                if (textT > 0.6)
+                  Positioned(
+                    top: scan * (_cellHeight - 14),
+                    left: 0,
+                    right: 0,
+                    height: 14,
+                    child: IgnorePointer(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              color.withValues(alpha: 0.0),
+                              color.withValues(alpha: 0.35),
+                              color.withValues(alpha: 0.0),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                // Icon rolls in over the benefit area.
                 Positioned.fill(
                   child: IgnorePointer(
                     child: Opacity(
@@ -730,7 +782,7 @@ class _Cell extends StatelessWidget {
                           scale: iconScale,
                           child: PixelSprite(
                             art: ItemSprites.shape(_shape(it.shape)),
-                            height: 34,
+                            height: 36,
                             recolor: {'X': color, 'x': Color.lerp(color, Colors.black, 0.45)!},
                           ),
                         ),
