@@ -54,6 +54,9 @@ public sealed class ReelState
     public bool ActorIsHero { get; set; } = true;
     public string? ActorId { get; set; }
     public string? TargetId { get; set; }
+
+    /// <summary>The transparent damage calculation for the acting hero's turn.</summary>
+    public DamageBreakdown? Damage { get; set; }
 }
 
 /// <summary>One item shown in a reel position, with its resolved benefit.</summary>
@@ -64,5 +67,24 @@ public sealed class ReelItem
     public int RarityTier { get; set; } = 1;
     public string Rarity { get; set; } = "Broken";
     public string Primary { get; set; } = string.Empty;
+    public string PrimaryStat { get; set; } = "PhysAtk";
+    public double PrimaryValue { get; set; }
     public List<string> Passives { get; set; } = new();
+}
+
+/// <summary>Step-by-step damage so the client can show exactly how it adds up.</summary>
+public sealed class DamageBreakdown
+{
+    public string HeroName { get; set; } = string.Empty;
+    public double Total { get; set; }
+    public double CritRate { get; set; }
+    public bool Crit { get; set; }
+    public List<DamageStep> Steps { get; set; } = new();
+}
+
+public sealed class DamageStep
+{
+    public string Label { get; set; } = string.Empty;
+    public double Total { get; set; }
+    public string Kind { get; set; } = "add"; // base | add | info | combo | crit
 }

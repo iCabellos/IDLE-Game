@@ -114,6 +114,9 @@ public static class IdleEngine
 
         var (kinds, combo, mult) = RollReel(actor.SlotKinds, actor.Luck, rng);
         var items = BuildReelItems(kinds, actor);
+
+        var breakdown = BuildDamage(actor, items, combo, mult, rng);
+
         s.Reel = new ReelState
         {
             Items = items,
@@ -122,13 +125,14 @@ public static class IdleEngine
             MaxRarityTier = items.Count == 0 ? 1 : items.Max(i => i.RarityTier),
             ActorIsHero = true,
             ActorId = actor.Id,
+            Damage = breakdown,
         };
         s.Outcome = combo;
 
         var target = s.Enemies.First(e => e.Hp > 0);
         s.Reel.TargetId = target.Id;
 
-        var dmg = Offense(actor) * mult * CritFactor(actor.Archetype, rng);
+        var dmg = breakdown.Total;
 
         // Synergy and jackpot strike the whole wave.
         if (combo is "SYNERGY" or "JACKPOT")
@@ -171,6 +175,7 @@ public static class IdleEngine
             ActorIsHero = false,
             ActorId = attacker.Id,
             TargetId = victim.Id,
+            Damage = null,
         };
         s.Outcome = "HIT";
     }
@@ -239,15 +244,17 @@ public static class IdleEngine
             var shape = ShapeFor(kind, actor.Archetype);
             var slotIndex = Math.Max(0, actor.SlotKinds.IndexOf(kind));
             var tier = RarityTierFor(actor.Level, slotIndex);
-            var (primary, passives) = ItemPower.Resolve(shape, tier, actor.Level);
+            var r = ItemPower.Resolve(shape, tier, actor.Level);
             items.Add(new ReelItem
             {
                 Kind = kind,
                 Shape = shape,
                 RarityTier = tier,
                 Rarity = ItemPower.RarityName(tier),
-                Primary = primary,
-                Passives = passives,
+                Primary = r.Primary,
+                PrimaryStat = r.PrimaryStat.ToString(),
+                PrimaryValue = r.PrimaryValue,
+                Passives = r.Passives,
             });
         }
         return items;
@@ -332,7 +339,7 @@ public static class IdleEngine
     {
         var lvl = Campaign[s.LevelIndex];
         var isBoss = s.PhaseIndex == lvl.PhaseCount - 1 && s.WaveIndex == lvl.WavesPerPhase - 1;
-        var baseHp = (52 + s.LevelIndex * 20 + s.PhaseIndex * 12 + s.WaveIndex * 8) * lvl.HpScale;
+        var baseHp = (52 + s.LevelIndex * 20 + s.PhaseIndex * 12 + s.WaveIndex * 8) * lvl.HpScale * 5;
 
         s.Enemies = new List<EnemyState>();
         if (isBoss)
@@ -382,13 +389,110 @@ public static class IdleEngine
         return baseOffense * (1 + 0.12 * (h.Level - 1));
     }
 
-    private static double CritFactor(string archetype, Random rng)
+    private static double BaseCritRate(string archetype) => archetype switch
     {
-        if (archetype == "critDamage")
+        "critDamage" => 0.08,
+        "physical" => 0.06,
+        _ => 0.04,
+    };
+
+    private static double CritMult(string archetype) => archetype == "critDamage" ? 2.5 : 1.8;
+
+    private static string ShapeNoun(string shape) => shape switch
+    {
+        "sword" => "Sword",
+        "bow" => "Bow",
+        "staff" => "Staff",
+        "shield" => "Shield",
+        "amulet" => "Amulet",
+        "earring" => "Earring",
+        "ring" => "Ring",
+        "relic" => "Relic",
+        _ => "Item",
+    };
+
+    /// <summary>
+    /// Transparent damage: base -> + each item's primary -> combo multiplier ->
+    /// crit roll. Returns the full step list so the client can show how it adds up.
+    /// </summary>
+    private static DamageBreakdown BuildDamage(
+        HeroState actor, List<ReelItem> items, string combo, double mult, Random rng)
+    {
+        var total = Offense(actor);
+        var critRate = BaseCritRate(actor.Archetype);
+        var steps = new List<DamageStep>
         {
-            return 1.8; // assassin: scales crit damage, big spikes
+            new() { Label = "BASE", Total = Math.Round(total), Kind = "base" },
+        };
+
+        foreach (var it in items)
+        {
+            if (Enum.TryParse<ItemPower.Stat>(it.PrimaryStat, out var stat) && ItemPower.IsDamageStat(stat))
+            {
+                total += it.PrimaryValue;
+                steps.Add(new DamageStep
+                {
+                    Label = $"{ShapeNoun(it.Shape)} +{Math.Round(it.PrimaryValue)}",
+                    Total = Math.Round(total),
+                    Kind = "add",
+                });
+            }
+            else if (Enum.TryParse<ItemPower.Stat>(it.PrimaryStat, out var st2) && st2 == ItemPower.Stat.CritRate)
+            {
+                critRate += it.PrimaryValue;
+                var critPct = (it.PrimaryValue * 100).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+                steps.Add(new DamageStep
+                {
+                    Label = $"{ShapeNoun(it.Shape)} +{critPct}% Crit",
+                    Total = Math.Round(total),
+                    Kind = "info",
+                });
+            }
+            else
+            {
+                steps.Add(new DamageStep
+                {
+                    Label = $"{ShapeNoun(it.Shape)} {it.Primary}",
+                    Total = Math.Round(total),
+                    Kind = "info",
+                });
+            }
         }
-        return rng.NextDouble() < 0.12 ? 1.6 : 1.0;
+
+        if (combo != "MIXED")
+        {
+            total *= mult;
+            steps.Add(new DamageStep
+            {
+                Label = $"{combo} x{mult:0}",
+                Total = Math.Round(total),
+                Kind = "combo",
+            });
+        }
+
+        critRate = Math.Clamp(critRate, 0, 0.95);
+        var crit = rng.NextDouble() < critRate;
+        if (crit)
+        {
+            var cm = CritMult(actor.Archetype);
+            total *= cm;
+            var cmStr = cm.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
+            steps.Add(new DamageStep
+            {
+                Label = $"CRIT! x{cmStr}",
+                Total = Math.Round(total),
+                Kind = "crit",
+            });
+        }
+
+        return new DamageBreakdown
+        {
+            HeroName = actor.Name,
+            Total = Math.Round(total),
+            CritRate = critRate,
+            Crit = crit,
+            Steps = steps,
+        };
     }
 
     // -- projection ---------------------------------------------------------
@@ -422,7 +526,17 @@ public static class IdleEngine
                 s.Reel.Combo,
                 s.Reel.Multiplier,
                 s.Reel.MaxRarityTier,
-                s.Reel.ActorIsHero),
+                s.Reel.ActorIsHero,
+                s.Reel.Damage is null
+                    ? null
+                    : new DamageView(
+                        s.Reel.Damage.HeroName,
+                        s.Reel.Damage.Total,
+                        s.Reel.Damage.CritRate,
+                        s.Reel.Damage.Crit,
+                        s.Reel.Damage.Steps
+                            .Select(st => new DamageStepView(st.Label, st.Total, st.Kind))
+                            .ToList())),
             Outcome: s.Outcome,
             Status: s.Status);
     }

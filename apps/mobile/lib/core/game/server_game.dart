@@ -89,6 +89,46 @@ class ServerReelItem {
       );
 }
 
+class ServerDamageStep {
+  ServerDamageStep({required this.label, required this.total, required this.kind});
+
+  final String label;
+  final double total;
+  final String kind; // base | add | info | combo | crit
+
+  factory ServerDamageStep.fromJson(Map<String, dynamic> j) => ServerDamageStep(
+        label: j['label'] as String,
+        total: (j['total'] as num).toDouble(),
+        kind: j['kind'] as String,
+      );
+}
+
+class ServerDamage {
+  ServerDamage({
+    required this.heroName,
+    required this.total,
+    required this.critRate,
+    required this.crit,
+    required this.steps,
+  });
+
+  final String heroName;
+  final double total;
+  final double critRate;
+  final bool crit;
+  final List<ServerDamageStep> steps;
+
+  factory ServerDamage.fromJson(Map<String, dynamic> j) => ServerDamage(
+        heroName: j['heroName'] as String,
+        total: (j['total'] as num).toDouble(),
+        critRate: (j['critRate'] as num).toDouble(),
+        crit: j['crit'] as bool,
+        steps: (j['steps'] as List)
+            .map((e) => ServerDamageStep.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
 class ServerReel {
   ServerReel({
     required this.items,
@@ -96,6 +136,7 @@ class ServerReel {
     required this.multiplier,
     required this.maxRarityTier,
     required this.actorIsHero,
+    required this.damage,
   });
 
   final List<ServerReelItem> items;
@@ -103,6 +144,7 @@ class ServerReel {
   final double multiplier;
   final int maxRarityTier;
   final bool actorIsHero;
+  final ServerDamage? damage;
 
   factory ServerReel.fromJson(Map<String, dynamic> j) => ServerReel(
         items: (j['items'] as List)
@@ -112,6 +154,9 @@ class ServerReel {
         multiplier: (j['multiplier'] as num).toDouble(),
         maxRarityTier: (j['maxRarityTier'] as num).toInt(),
         actorIsHero: j['actorIsHero'] as bool,
+        damage: j['damage'] == null
+            ? null
+            : ServerDamage.fromJson(j['damage'] as Map<String, dynamic>),
       );
 }
 

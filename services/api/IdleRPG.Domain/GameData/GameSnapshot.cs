@@ -41,7 +41,8 @@ public sealed record ReelView(
     string Combo,
     double Multiplier,
     int MaxRarityTier,
-    bool ActorIsHero);
+    bool ActorIsHero,
+    DamageView? Damage);
 
 public sealed record ReelItemView(
     string Kind,
@@ -50,3 +51,12 @@ public sealed record ReelItemView(
     string Rarity,
     string Primary,
     IReadOnlyList<string> Passives);
+
+public sealed record DamageView(
+    string HeroName,
+    double Total,
+    double CritRate,
+    bool Crit,
+    IReadOnlyList<DamageStepView> Steps);
+
+public sealed record DamageStepView(string Label, double Total, string Kind);

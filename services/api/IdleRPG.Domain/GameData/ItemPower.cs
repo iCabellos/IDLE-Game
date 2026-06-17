@@ -123,8 +123,12 @@ public static class ItemPower
 
     public static string RarityName(int tier) => RarityNames[Math.Clamp(tier, 1, 21) - 1];
 
-    /// <summary>Resolves an item into its headline stat line + rarity buff list.</summary>
-    public static (string Primary, List<string> Passives) Resolve(string shape, int tier, int level)
+    public static bool IsDamageStat(Stat s) => s is Stat.PhysAtk or Stat.MagAtk;
+
+    public sealed record Resolved(Stat PrimaryStat, double PrimaryValue, string Primary, List<string> Passives);
+
+    /// <summary>Resolves an item into its headline stat (typed + value) + buff list.</summary>
+    public static Resolved Resolve(string shape, int tier, int level)
     {
         var spec = Specs.TryGetValue(shape, out var s) ? s : Specs["sword"];
         tier = Math.Clamp(tier, 1, 21);
@@ -147,6 +151,7 @@ public static class ItemPower
         }
 
         var primaryStat = spec.Base.Keys.First();
-        return (Describe(primaryStat, stats[primaryStat]), passives);
+        var primaryValue = stats[primaryStat];
+        return new Resolved(primaryStat, primaryValue, Describe(primaryStat, primaryValue), passives);
     }
 }
