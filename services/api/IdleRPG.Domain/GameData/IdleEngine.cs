@@ -245,8 +245,8 @@ public static class IdleEngine
             var shape = ShapeFor(kind, actor.Archetype);
             var slotIndex = Math.Max(0, actor.SlotKinds.IndexOf(kind));
             var itemLevel = ItemLevelFor(actor.Level, slotIndex);
-            var tier = RarityForLevel(itemLevel);
-            var r = ItemPower.Resolve(shape, itemLevel);
+            var tier = RarityTierFor(actor.Level, slotIndex);
+            var r = ItemPower.Resolve(shape, itemLevel, tier);
             items.Add(new ReelItem
             {
                 Kind = kind,
@@ -291,9 +291,13 @@ public static class IdleEngine
         return Math.Clamp(rounded, 5, 1000);
     }
 
-    /// <summary>Rarity tier (1..21, for colour/label) derived from item level.</summary>
-    private static int RarityForLevel(int level) =>
-        Math.Clamp(1 + (int)Math.Round(level * 20.0 / 1000.0), 1, 21);
+    /// <summary>
+    /// Rarity tier (1..21) as its own axis. Spread across slots and growing with
+    /// hero progress (capped low so total sub-stat counts stay readable).
+    /// (Placeholder until real per-character ItemInstance loadouts are wired.)
+    /// </summary>
+    private static int RarityTierFor(int heroLevel, int slotIndex) =>
+        Math.Clamp(1 + slotIndex + Math.Min(heroLevel, 30) / 10, 1, 8);
 
     private static string Evaluate(IReadOnlyList<string> draw)
     {

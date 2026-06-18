@@ -139,26 +139,33 @@ public static class ItemPower
     /// <summary>Sub-stats unlocked at this item level: one every 100 levels.</summary>
     public static int SubStatCount(int level) => Math.Clamp(level, 1, 1000) / 100;
 
+    /// <summary>Each rarity tier adds +50% power to the primary and every sub-stat.</summary>
+    public static double RarityMult(int tier) => 1 + 0.5 * (Math.Clamp(tier, 1, 21) - 1);
+
     /// <summary>
-    /// Resolves an item by LEVEL: a primary stat that grows +10% per 5 levels,
-    /// plus one sub-stat per 100 levels (each also scaled by level).
+    /// Resolves an item by LEVEL and RARITY:
+    ///  - primary grows +10% per 5 levels, and +50% per rarity tier;
+    ///  - one sub-stat per 100 levels PLUS one extra per rarity tier above Broken;
+    ///  - every sub-stat is scaled by both level and rarity.
     /// </summary>
-    public static Resolved Resolve(string shape, int level)
+    public static Resolved Resolve(string shape, int level, int rarityTier)
     {
         var spec = Specs.TryGetValue(shape, out var s) ? s : Specs["sword"];
         level = Math.Clamp(level, 1, 1000);
+        rarityTier = Math.Clamp(rarityTier, 1, 21);
         var lf = LevelFactor(level);
+        var rm = RarityMult(rarityTier);
 
         var primaryStat = spec.Base.Keys.First();
-        var primaryValue = spec.Base[primaryStat] * PrimaryScale * lf;
+        var primaryValue = spec.Base[primaryStat] * PrimaryScale * lf * rm;
 
         var passives = new List<string>();
         var perks = new List<Perk>();
-        var count = SubStatCount(level);
+        var count = SubStatCount(level) + (rarityTier - 1);
         for (var k = 0; k < count; k++)
         {
             var stat = spec.Track[k % spec.Track.Length];
-            var v = PerkBase[stat] * lf;
+            var v = PerkBase[stat] * lf * rm;
             passives.Add(Describe(stat, v));
             perks.Add(new Perk(stat, v));
         }
