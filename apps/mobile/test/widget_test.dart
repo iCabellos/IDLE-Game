@@ -1,20 +1,21 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:idle_rpg/core/game/combat_service.dart';
 import 'package:idle_rpg/main.dart';
 
 void main() {
-  testWidgets('App boots into the server-driven battle (dumb client)',
+  testWidgets('App boots with the always-on combat panel pinned in the shell',
       (WidgetTester tester) async {
     await tester.pumpWidget(const IdleRpgApp());
     await tester.pump();
 
-    // With no server reachable in the test, the dumb client shows its
-    // connecting state (it never simulates combat locally).
-    expect(find.text('CONNECTING TO SERVER'), findsOneWidget);
+    // No server in the test: the persistent panel shows its connecting state.
+    expect(find.text('CONNECTING…'), findsOneWidget);
 
-    // Tear down so the polling timer is cancelled before the test ends.
+    // Stop the shared poller and tear down so no timers leak.
+    CombatService.instance.stop();
     await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump(const Duration(seconds: 2));
+    await tester.pump(const Duration(seconds: 1));
   });
 }
