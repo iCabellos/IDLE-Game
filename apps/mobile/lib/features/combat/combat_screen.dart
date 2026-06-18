@@ -12,15 +12,16 @@ import '../../core/pixel/pixel_art.dart';
 import '../../core/pixel/sprites.dart';
 
 const _pixelFont = 'monospace';
-const double _cellHeight = 172;
-const double _passiveLineH = 9.5;
+const double _cellHeight = 168;
+const int _turnMs = 2400;
 
-/// Total turn animation length, scaled to the number of sub-stats so the walk
-/// always covers them all and still finishes before the next 4s server turn.
-int _turnMs(int ledgerLen) => (1600 + ledgerLen * 120).clamp(1800, 3400);
-
-/// Progress (0..1) of the "apply sub-stats" phase (after the items roll in).
-double _walkP(double t) => ((t - 0.18) / 0.82).clamp(0.0, 1.0);
+// Animation timeline (fractions of the turn), tuned to feel compensated.
+const double _settleBase = 0.26; // first reel cell settles here
+const double _settleStep = 0.13; // stagger between cells
+const double _countStart = 0.42; // total starts counting here
+const double _countEnd = 0.96;
+const double _projStart = 0.70;
+const double _projEnd = 0.92;
 
 TextStyle _retro(double size,
         {Color color = const Color(0xFFF1F5F9), FontWeight w = FontWeight.w700}) =>
@@ -77,6 +78,8 @@ ItemShape _shape(String s) => switch (s) {
 
 Color _rarityColor(int tier) =>
     Rarity.values[(tier - 1).clamp(0, Rarity.values.length - 1)].color;
+
+double _ease(Curve c, double x) => c.transform(x.clamp(0.0, 1.0));
 
 class CombatScreen extends StatefulWidget {
   const CombatScreen({super.key});
@@ -147,16 +150,13 @@ class _Connecting extends StatelessWidget {
   const _Connecting();
 
   @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text('CONNECTING TO SERVER',
-          style: _retro(12, color: const Color(0xFF8FB3D9))),
-    );
-  }
+  Widget build(BuildContext context) => Center(
+        child: Text('CONNECTING TO SERVER',
+            style: _retro(12, color: const Color(0xFF8FB3D9))),
+      );
 }
 
-/// Owns the single per-turn clock so the reel underline, the total and the
-/// floating before/after rows are all frame-locked together.
+/// Single per-turn clock driving the whole animation, restarted each turn.
 class _ArenaCard extends StatefulWidget {
   const _ArenaCard({required this.snap, required this.online});
 
@@ -173,19 +173,13 @@ class _ArenaCardState extends State<_ArenaCard> with SingleTickerProviderStateMi
   @override
   void initState() {
     super.initState();
-    _turn = AnimationController(
-      vsync: this,
-      duration: Duration(milliseconds: _turnMs(widget.snap.reel.ledger.length)),
-    )..forward();
+    _turn = AnimationController(vsync: this, duration: const Duration(milliseconds: _turnMs))..forward();
   }
 
   @override
   void didUpdateWidget(_ArenaCard old) {
     super.didUpdateWidget(old);
-    if (widget.snap.tick != old.snap.tick) {
-      _turn.duration = Duration(milliseconds: _turnMs(widget.snap.reel.ledger.length));
-      _turn.forward(from: 0);
-    }
+    if (widget.snap.tick != old.snap.tick) _turn.forward(from: 0);
   }
 
   @override
@@ -201,9 +195,7 @@ class _ArenaCardState extends State<_ArenaCard> with SingleTickerProviderStateMi
         color: const Color(0xFF0C1320),
         border: Border.all(color: const Color(0xFF1F2D44), width: 3),
         borderRadius: BorderRadius.circular(6),
-        boxShadow: const [
-          BoxShadow(color: Color(0x66000000), blurRadius: 18, offset: Offset(0, 8)),
-        ],
+        boxShadow: const [BoxShadow(color: Color(0x66000000), blurRadius: 18, offset: Offset(0, 8))],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(4),
@@ -247,8 +239,7 @@ class _Banner extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Text('LEVEL ${snap.levelIndex + 1} / 10',
-                      style: _retro(9, color: const Color(0xFF5E7392))),
+                  Text('LEVEL ${snap.levelIndex + 1} / 10', style: _retro(9, color: const Color(0xFF5E7392))),
                   const SizedBox(width: 8),
                   Container(
                     width: 7,
@@ -259,8 +250,7 @@ class _Banner extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 4),
-                  Text(online ? 'SERVER · LIVE' : 'RECONNECTING',
-                      style: _retro(8, color: const Color(0xFF5E7392))),
+                  Text(online ? 'SERVER · LIVE' : 'RECONNECTING', style: _retro(8, color: const Color(0xFF5E7392))),
                 ],
               ),
               const SizedBox(height: 3),
@@ -313,7 +303,6 @@ class _Pips extends StatelessWidget {
   }
 }
 
-/// Allies front-left, enemy wave back-right (a step higher).
 class _Stage extends StatelessWidget {
   const _Stage({required this.snap, required this.t});
 
@@ -329,15 +318,15 @@ class _Stage extends StatelessWidget {
         final heroH = min(h * 0.30, w * 0.15);
         final bossH = min(h * 0.50, w * 0.32);
         final dmg = snap.reel.damage;
-        final ledger = snap.reel.ledger;
-        final hasDebuffs = ledger.any((e) => e.isEnemy);
+        final comboColor = _rarityColor(snap.reel.maxRarityTier);
+        final hitting = t > _projEnd - 0.02;
 
         return Stack(
           fit: StackFit.expand,
           children: [
             StageBackground(theme: _theme(snap.theme)),
 
-            // Enemy wave: right side, a step above the allies.
+            // Enemy wave: right, a step higher.
             Align(
               alignment: const Alignment(0.96, 0.66),
               child: Row(
@@ -358,11 +347,11 @@ class _Stage extends StatelessWidget {
                           hpFraction: enemy.hpFraction,
                           alive: enemy.alive,
                           level: null,
-                          acting: false,
-                          trigger: enemy.hit ? snap.tick : 0,
-                          overlay: (enemy.hit && hasDebuffs)
-                              ? _FloatRows(ledger: ledger, t: t, enemy: true)
-                              : null,
+                          glow: false,
+                          // Impact lands as the projectile arrives.
+                          trigger: (enemy.hit && hitting) ? snap.tick : 0,
+                          lungeDir: 0,
+                          overlay: null,
                         ),
                       ),
                     ),
@@ -388,19 +377,50 @@ class _Stage extends StatelessWidget {
                         hpFraction: hero.hpFraction,
                         alive: hero.alive,
                         level: hero.level,
-                        acting: hero.acting,
-                        trigger: hero.acting ? snap.tick : 0,
-                        overlay: (hero.acting && dmg != null)
-                            ? _HeroTotal(dmg: dmg, ledger: ledger, t: t)
-                            : null,
+                        glow: hero.acting,
+                        // Acting hero lunges as it releases the strike.
+                        trigger: (hero.acting && t > _projStart) ? snap.tick : 0,
+                        lungeDir: 1,
+                        overlay: (hero.acting && dmg != null) ? _TotalPopup(dmg: dmg, t: t) : null,
                       ),
                     ),
                 ],
               ),
             ),
+
+            // Projectile from the acting hero to the targeted enemy.
+            if (dmg != null && t >= _projStart && t <= _projEnd)
+              _Projectile(t: t, color: comboColor, crit: dmg.crit),
           ],
         );
       },
+    );
+  }
+}
+
+class _Projectile extends StatelessWidget {
+  const _Projectile({required this.t, required this.color, required this.crit});
+
+  final double t;
+  final Color color;
+  final bool crit;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = _ease(Curves.easeInCubic, (t - _projStart) / (_projEnd - _projStart));
+    final a = Alignment.lerp(const Alignment(-0.6, 0.55), const Alignment(0.85, 0.18), p)!;
+    final c = crit ? const Color(0xFFFFD700) : color;
+    return Align(
+      alignment: a,
+      child: Container(
+        width: 14,
+        height: 14,
+        decoration: BoxDecoration(
+          color: c,
+          shape: BoxShape.circle,
+          boxShadow: [BoxShadow(color: c, blurRadius: 12, spreadRadius: 2)],
+        ),
+      ),
     );
   }
 }
@@ -414,8 +434,9 @@ class _Unit extends StatefulWidget {
     required this.hpFraction,
     required this.alive,
     required this.level,
-    required this.acting,
+    required this.glow,
     required this.trigger,
+    required this.lungeDir,
     required this.overlay,
   });
 
@@ -425,8 +446,9 @@ class _Unit extends StatefulWidget {
   final double hpFraction;
   final bool alive;
   final int? level;
-  final bool acting;
+  final bool glow;
   final int trigger;
+  final double lungeDir;
   final Widget? overlay;
 
   @override
@@ -435,64 +457,55 @@ class _Unit extends StatefulWidget {
 
 class _UnitState extends State<_Unit> with TickerProviderStateMixin {
   late final AnimationController _bob;
-  late final AnimationController _flash;
+  late final AnimationController _hit;
 
   @override
   void initState() {
     super.initState();
-    _bob = AnimationController(vsync: this, duration: const Duration(milliseconds: 1300))
-      ..repeat(reverse: true);
-    _flash = AnimationController(vsync: this, duration: const Duration(milliseconds: 320), value: 1);
+    _bob = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))..repeat(reverse: true);
+    _hit = AnimationController(vsync: this, duration: const Duration(milliseconds: 360), value: 1);
   }
 
   @override
   void didUpdateWidget(_Unit old) {
     super.didUpdateWidget(old);
-    if (widget.trigger != old.trigger && widget.trigger != 0) {
-      _flash.forward(from: 0);
-    }
+    if (widget.trigger != old.trigger && widget.trigger != 0) _hit.forward(from: 0);
   }
 
   @override
   void dispose() {
     _bob.dispose();
-    _flash.dispose();
+    _hit.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final unit = AnimatedBuilder(
-      animation: Listenable.merge([_bob, _flash]),
+      animation: Listenable.merge([_bob, _hit]),
       builder: (context, _) {
         final bobY = widget.alive ? sin(_bob.value * pi) * 2.0 : 0.0;
-        final shakeX = sin(_flash.value * pi * 3) * 4.0 * (1 - _flash.value);
-        final flash = (1 - _flash.value) * 0.9;
-        final lift = widget.acting ? 5.0 : 0.0;
+        final e = 1 - _hit.value; // 1 at hit -> 0
+        final lungeX = widget.lungeDir != 0 ? sin(e * pi) * 9.0 * widget.lungeDir : 0.0;
+        final shakeX = widget.lungeDir == 0 ? sin(e * pi * 3) * 4.0 * e : 0.0;
+        final flash = e * 0.9;
 
         return Transform.translate(
-          offset: Offset(shakeX, -bobY - lift),
+          offset: Offset(lungeX + shakeX, -bobY - (widget.glow ? 5 : 0)),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (widget.level != null) _LvBadge(level: widget.level!, acting: widget.acting),
+              if (widget.level != null) _LvBadge(level: widget.level!, glow: widget.glow),
               if (widget.level != null) const SizedBox(height: 2),
               _HpBar(fraction: widget.hpFraction, alive: widget.alive),
               const SizedBox(height: 3),
               Container(
-                decoration: widget.acting
-                    ? const BoxDecoration(
-                        boxShadow: [BoxShadow(color: Color(0xAA34D399), blurRadius: 16, spreadRadius: 1)],
-                      )
+                decoration: widget.glow
+                    ? const BoxDecoration(boxShadow: [BoxShadow(color: Color(0x9934D399), blurRadius: 16, spreadRadius: 1)])
                     : null,
                 child: Opacity(
                   opacity: widget.alive ? 1 : 0.22,
-                  child: PixelSprite(
-                    art: widget.art,
-                    height: widget.height,
-                    flipX: widget.flipX,
-                    flash: widget.alive ? flash : 0,
-                  ),
+                  child: PixelSprite(art: widget.art, height: widget.height, flipX: widget.flipX, flash: widget.alive ? flash : 0),
                 ),
               ),
             ],
@@ -502,7 +515,6 @@ class _UnitState extends State<_Unit> with TickerProviderStateMixin {
     );
 
     if (widget.overlay == null) return unit;
-
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -515,7 +527,7 @@ class _UnitState extends State<_Unit> with TickerProviderStateMixin {
                 minHeight: 0,
                 maxHeight: double.infinity,
                 alignment: Alignment.bottomCenter,
-                child: Transform.translate(offset: const Offset(0, -8), child: widget.overlay),
+                child: Transform.translate(offset: const Offset(0, -6), child: widget.overlay),
               ),
             ),
           ),
@@ -526,20 +538,17 @@ class _UnitState extends State<_Unit> with TickerProviderStateMixin {
 }
 
 class _LvBadge extends StatelessWidget {
-  const _LvBadge({required this.level, required this.acting});
+  const _LvBadge({required this.level, required this.glow});
 
   final int level;
-  final bool acting;
+  final bool glow;
 
   @override
   Widget build(BuildContext context) {
-    final c = acting ? const Color(0xFF34D399) : const Color(0xFF24334C);
+    final c = glow ? const Color(0xFF34D399) : const Color(0xFF24334C);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-      decoration: BoxDecoration(
-        color: const Color(0xFF101A2A),
-        border: Border.all(color: c, width: 1),
-      ),
+      decoration: BoxDecoration(color: const Color(0xFF101A2A), border: Border.all(color: c, width: 1)),
       child: Text('LV $level', style: _retro(8, color: const Color(0xFF6EE7B7))),
     );
   }
@@ -565,112 +574,56 @@ class _HpBar extends StatelessWidget {
       width: 38,
       height: 6,
       padding: const EdgeInsets.all(1),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0A0F18),
-        border: Border.all(color: const Color(0xFF1F2D44), width: 1),
-      ),
+      decoration: BoxDecoration(color: const Color(0xFF0A0F18), border: Border.all(color: const Color(0xFF1F2D44), width: 1)),
       child: Align(
         alignment: Alignment.centerLeft,
-        child: FractionallySizedBox(
-          widthFactor: f <= 0 ? 0.001 : f,
-          child: Container(color: color),
+        child: FractionallySizedBox(widthFactor: f <= 0 ? 0.001 : f, child: Container(color: color)),
+      ),
+    );
+  }
+}
+
+/// Just the running total over the acting hero: smooth count-up + a pulse and
+/// a gold CRIT! pop on the last beat. No card, no clutter.
+class _TotalPopup extends StatelessWidget {
+  const _TotalPopup({required this.dmg, required this.t});
+
+  final ServerDamage dmg;
+  final double t;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = _ease(Curves.easeOutCubic, (t - _countStart) / (_countEnd - _countStart));
+    final shown = (dmg.total * p).round();
+    final crit = dmg.crit && p >= 0.999;
+    final color = crit ? const Color(0xFFFFD700) : const Color(0xFFF1F5F9);
+
+    // Gentle float up + a small overshoot pulse as it lands.
+    final rise = 16.0 * _ease(Curves.easeOutCubic, (t - _countStart) / 0.5);
+    final landPulse = p > 0.85 ? 1 + 0.18 * sin((p - 0.85) / 0.15 * pi) : 1.0;
+
+    return Transform.translate(
+      offset: Offset(0, -rise),
+      child: Transform.scale(
+        scale: landPulse,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('$shown',
+                style: _retro(crit ? 24 : 18, color: color, w: FontWeight.w900).copyWith(shadows: const [
+                  Shadow(color: Colors.black, blurRadius: 4, offset: Offset(1, 1)),
+                  Shadow(color: Colors.black, blurRadius: 10),
+                ])),
+            if (crit) Text('CRIT!', style: _retro(12, color: const Color(0xFFFFD700), w: FontWeight.w900)),
+          ],
         ),
       ),
     );
   }
 }
 
-/// Only the running total (no card/border), rising as hero before/after rows
-/// stack below it. Counts up through the breakdown steps over the walk phase.
-class _HeroTotal extends StatelessWidget {
-  const _HeroTotal({required this.dmg, required this.ledger, required this.t});
-
-  final ServerDamage dmg;
-  final List<ServerSubStat> ledger;
-  final double t;
-
-  @override
-  Widget build(BuildContext context) {
-    final steps = dmg.steps;
-    if (steps.isEmpty) return const SizedBox.shrink();
-
-    final p = _walkP(t);
-    final segs = steps.length;
-    final pos = (p * (segs - 1)).clamp(0.0, (segs - 1).toDouble());
-    final i = pos.floor().clamp(0, segs - 1);
-    final frac = (pos - i).clamp(0.0, 1.0);
-    final to = steps[min(i + 1, segs - 1)].total;
-    final shown = (steps[i].total + (to - steps[i].total) * frac).round();
-    final finalCrit = dmg.crit && p > 0.96;
-    final numColor = finalCrit ? const Color(0xFFFFD700) : const Color(0xFFF1F5F9);
-
-    final rows = _ledgerRows(ledger, t, enemy: false, color: const Color(0xFF6EE7B7));
-
-    return Transform.translate(
-      offset: Offset(0, -rows.length * 10.5),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('$shown',
-              style: _retro(finalCrit ? 22 : 17, color: numColor, w: FontWeight.w900).copyWith(
-                shadows: const [
-                  Shadow(color: Colors.black, blurRadius: 4, offset: Offset(1, 1)),
-                  Shadow(color: Colors.black, blurRadius: 8),
-                ],
-              )),
-          if (finalCrit)
-            Text('CRIT!!', style: _retro(12, color: const Color(0xFFFFD700), w: FontWeight.w900)),
-          ...rows,
-        ],
-      ),
-    );
-  }
-}
-
-/// Debuff before/after rows floating over the targeted enemy.
-class _FloatRows extends StatelessWidget {
-  const _FloatRows({required this.ledger, required this.t, required this.enemy});
-
-  final List<ServerSubStat> ledger;
-  final double t;
-  final bool enemy;
-
-  @override
-  Widget build(BuildContext context) {
-    final rows = _ledgerRows(ledger, t, enemy: enemy, color: const Color(0xFFEF6B6B));
-    if (rows.isEmpty) return const SizedBox.shrink();
-    return Transform.translate(
-      offset: Offset(0, -rows.length * 10.5),
-      child: Column(mainAxisSize: MainAxisSize.min, children: rows),
-    );
-  }
-}
-
-/// Builds the visible (newest-first, soft-fading) before/after rows for one
-/// side. No fixed cap — older rows fade to nothing instead of being clipped.
-List<Widget> _ledgerRows(List<ServerSubStat> ledger, double t,
-    {required bool enemy, required Color color}) {
-  if (ledger.isEmpty) return const [];
-  final p = _walkP(t);
-  final applied = (p * ledger.length).floor().clamp(0, ledger.length);
-  final rows = <Widget>[];
-  for (var k = applied - 1; k >= 0; k--) {
-    if (ledger[k].isEnemy != enemy) continue;
-    final age = (applied - 1 - k);
-    final op = (1.0 - age * 0.16).clamp(0.0, 1.0);
-    if (op <= 0.02) break;
-    final s = ledger[k];
-    rows.add(Opacity(
-      opacity: op,
-      child: Text('${s.stat}  ${s.before} -> ${s.after}',
-          style: _retro(7.5, color: color, w: FontWeight.w900), maxLines: 1),
-    ));
-  }
-  return rows;
-}
-
-/// Fixed-size 1x3 reel. Items roll in, then the underline walks every sub-stat
-/// of every item in order, auto-scrolling each cell so all are visible.
+/// The 1x3 reel: a slot-machine spin that settles cell by cell, then reveals
+/// each item (icon, rarity + level, sub-stats). Smooth + staggered.
 class _Reel extends StatelessWidget {
   const _Reel({required this.snap, required this.t});
 
@@ -682,14 +635,8 @@ class _Reel extends StatelessWidget {
     final reel = snap.reel;
     final items = reel.items;
     final dmg = reel.damage;
-    final isPrize = reel.combo != 'MIXED' && items.isNotEmpty;
-    final led = reel.ledger;
-
-    final p = _walkP(t);
-    final applied = led.isEmpty ? 0 : (p * led.length).floor().clamp(0, led.length);
-    final cur = applied - 1;
-    final curCell = cur >= 0 ? led[cur].cell : -1;
-    final curLine = cur >= 0 ? led[cur].line : -1;
+    final settled = t > _settleBase + _settleStep * 2 + 0.10;
+    final isPrize = reel.combo != 'MIXED' && items.isNotEmpty && settled;
 
     return Container(
       width: double.infinity,
@@ -706,10 +653,10 @@ class _Reel extends StatelessWidget {
             children: [
               Text(dmg != null ? 'TURN  ${dmg.heroName.toUpperCase()}' : 'SLOT REEL',
                   style: _retro(9, color: const Color(0xFF6EE7B7))),
-              Text(isPrize ? '${reel.combo}  x${reel.multiplier.toStringAsFixed(0)}' : 'ROLLING',
-                  style: _retro(10,
-                      color: isPrize ? _rarityColor(reel.maxRarityTier) : const Color(0xFF5E7392),
-                      w: FontWeight.w900)),
+              _ComboBadge(
+                  label: isPrize ? '${reel.combo}  x${reel.multiplier.toStringAsFixed(0)}' : 'SPIN',
+                  color: isPrize ? _rarityColor(reel.maxRarityTier) : const Color(0xFF5E7392),
+                  prize: isPrize),
             ],
           ),
           const SizedBox(height: 6),
@@ -718,14 +665,7 @@ class _Reel extends StatelessWidget {
             child: Row(
               children: [
                 for (var i = 0; i < 3; i++)
-                  Expanded(
-                    child: _Cell(
-                      item: i < items.length ? items[i] : null,
-                      t: t,
-                      index: i,
-                      highlightLine: curCell == i ? curLine : -1,
-                    ),
-                  ),
+                  Expanded(child: _Cell(item: i < items.length ? items[i] : null, t: t, index: i)),
               ],
             ),
           ),
@@ -735,144 +675,136 @@ class _Reel extends StatelessWidget {
   }
 }
 
-class _Cell extends StatefulWidget {
-  const _Cell({required this.item, required this.t, required this.index, required this.highlightLine});
+class _ComboBadge extends StatelessWidget {
+  const _ComboBadge({required this.label, required this.color, required this.prize});
+
+  final String label;
+  final Color color;
+  final bool prize;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: prize
+          ? BoxDecoration(
+              border: Border.all(color: color, width: 1),
+              borderRadius: BorderRadius.circular(3),
+              boxShadow: [BoxShadow(color: color.withValues(alpha: 0.6), blurRadius: 8)],
+            )
+          : null,
+      child: Text(label, style: _retro(10, color: color, w: FontWeight.w900)),
+    );
+  }
+}
+
+class _Cell extends StatelessWidget {
+  const _Cell({required this.item, required this.t, required this.index});
 
   final ServerReelItem? item;
   final double t;
   final int index;
-  final int highlightLine;
 
-  @override
-  State<_Cell> createState() => _CellState();
-}
-
-class _CellState extends State<_Cell> {
-  final _sc = ScrollController();
-  int _lastLine = -1;
-
-  @override
-  void dispose() {
-    _sc.dispose();
-    super.dispose();
-  }
-
-  void _scrollTo(int line) {
-    if (line < 0 || !_sc.hasClients) return;
-    final target = (line * _passiveLineH - 46).clamp(0.0, _sc.position.maxScrollExtent);
-    _sc.animateTo(target, duration: const Duration(milliseconds: 160), curve: Curves.easeOut);
-  }
+  static const _spinShapes = ItemShape.values;
 
   @override
   Widget build(BuildContext context) {
-    final it = widget.item;
+    final it = item;
     final color = it == null ? const Color(0xFF1F2D44) : _rarityColor(it.rarityTier);
-
-    // Roll-in happens in the first 0.18 of the turn.
-    final t = widget.t;
-    final ci = ((t - widget.index * 0.05) / 0.06).clamp(0.0, 1.0);
-    final textT = ((t - 0.12) / 0.06).clamp(0.0, 1.0);
-    final iconOpacity = ci * (1 - textT);
-    final iconScale = 0.55 + 0.45 * ci;
-
-    if (widget.highlightLine != _lastLine) {
-      _lastLine = widget.highlightLine;
-      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollTo(_lastLine));
-    }
+    final settleAt = _settleBase + index * _settleStep;
+    final spinning = t < settleAt;
+    // Settle overshoot.
+    final settleP = _ease(Curves.easeOutBack, ((t - settleAt) / 0.16).clamp(0.0, 1.0));
+    // Stats fade in shortly after the item lands.
+    final reveal = _ease(Curves.easeOutCubic, ((t - settleAt - 0.06) / 0.20).clamp(0.0, 1.0));
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
         color: const Color(0xFF111B2C),
-        border: Border.all(color: ci > 0.9 ? color : const Color(0xFF1F2D44), width: ci > 0.9 ? 2 : 1),
-        boxShadow: ci > 0.9 ? [BoxShadow(color: color.withValues(alpha: 0.3), blurRadius: 6)] : null,
+        border: Border.all(color: spinning ? const Color(0xFF1F2D44) : color, width: spinning ? 1 : 2),
+        boxShadow: spinning ? null : [BoxShadow(color: color.withValues(alpha: 0.35 * reveal), blurRadius: 8)],
       ),
       clipBehavior: Clip.hardEdge,
       child: it == null
           ? const SizedBox.shrink()
-          : Stack(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(5),
-                  child: Opacity(
-                    opacity: textT,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('${it.rarity.toUpperCase()} · LV ${it.level}',
-                            style: _retro(7, color: color, w: FontWeight.w900), maxLines: 1),
-                        const SizedBox(height: 1),
-                        Text(it.primary.toUpperCase(),
-                            style: _retro(8, color: const Color(0xFFF1F5F9), w: FontWeight.w900),
-                            maxLines: 2),
-                        const SizedBox(height: 2),
-                        Expanded(
-                          child: ListView.builder(
-                            controller: _sc,
-                            physics: const NeverScrollableScrollPhysics(),
-                            padding: EdgeInsets.zero,
-                            itemCount: it.passives.length,
-                            itemExtent: _passiveLineH,
-                            itemBuilder: (context, l) => _PassiveLine(
-                              text: it.passives[l],
-                              color: color,
-                              lit: l == widget.highlightLine,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: Opacity(
-                      opacity: iconOpacity,
-                      child: Center(
-                        child: Transform.scale(
-                          scale: iconScale,
-                          child: PixelSprite(
-                            art: ItemSprites.shape(_shape(it.shape)),
-                            height: 36,
-                            recolor: {'X': color, 'x': Color.lerp(color, Colors.black, 0.45)!},
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          : (spinning ? _spinFace(it, color) : _itemFace(it, color, settleP, reveal)),
     );
   }
-}
 
-class _PassiveLine extends StatelessWidget {
-  const _PassiveLine({required this.text, required this.color, required this.lit});
-
-  final String text;
-  final Color color;
-  final bool lit;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.only(left: 2),
-      decoration: lit
-          ? BoxDecoration(
-              color: color.withValues(alpha: 0.34),
-              border: Border(left: BorderSide(color: color, width: 2)),
-            )
-          : null,
-      alignment: Alignment.centerLeft,
-      child: Text(
-        text,
-        style: _retro(6.5,
-            color: lit ? const Color(0xFFFFFFFF) : const Color(0xFF9FB3CC),
-            w: lit ? FontWeight.w900 : FontWeight.w700),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+  Widget _spinFace(ServerReelItem it, Color color) {
+    // Reel rolling: icon cycles fast with a vertical "roller" jitter.
+    final idx = ((t * 60).floor() + index * 5) % _spinShapes.length;
+    final jitter = sin(t * pi * 26) * 5;
+    return Center(
+      child: Transform.translate(
+        offset: Offset(0, jitter),
+        child: Opacity(
+          opacity: 0.7,
+          child: PixelSprite(
+            art: ItemSprites.shape(_spinShapes[idx]),
+            height: 40,
+            recolor: {'X': const Color(0xFF8FB3D9), 'x': const Color(0xFF2A3852)},
+          ),
+        ),
       ),
+    );
+  }
+
+  Widget _itemFace(ServerReelItem it, Color color, double settleP, double reveal) {
+    return Stack(
+      children: [
+        // Stats panel fades/slides in.
+        Padding(
+          padding: const EdgeInsets.all(5),
+          child: Opacity(
+            opacity: reveal,
+            child: Transform.translate(
+              offset: Offset(0, (1 - reveal) * 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('${it.rarity.toUpperCase()} · LV ${it.level}',
+                      style: _retro(7, color: color, w: FontWeight.w900), maxLines: 1),
+                  const SizedBox(height: 1),
+                  Text(it.primary.toUpperCase(),
+                      style: _retro(8.5, color: const Color(0xFFF1F5F9), w: FontWeight.w900), maxLines: 1),
+                  const SizedBox(height: 2),
+                  Expanded(
+                    child: ListView.builder(
+                      padding: EdgeInsets.zero,
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: it.passives.length,
+                      itemExtent: 9.5,
+                      itemBuilder: (context, l) => Text(it.passives[l],
+                          style: _retro(6.5, color: const Color(0xFF9FB3CC)), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        // Icon lands with an overshoot, then recedes behind the stats.
+        Positioned.fill(
+          child: IgnorePointer(
+            child: Opacity(
+              opacity: (1 - reveal).clamp(0.0, 1.0),
+              child: Center(
+                child: Transform.scale(
+                  scale: 0.6 + 0.45 * settleP,
+                  child: PixelSprite(
+                    art: ItemSprites.shape(_shape(it.shape)),
+                    height: 40,
+                    recolor: {'X': color, 'x': Color.lerp(color, Colors.black, 0.45)!},
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

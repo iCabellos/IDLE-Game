@@ -133,39 +133,39 @@ public static class ItemPower
     public sealed record Resolved(
         Stat PrimaryStat, double PrimaryValue, string Primary, List<string> Passives, List<Perk> Perks);
 
-    /// <summary>+10% per 5 item levels (linear).</summary>
-    public static double LevelFactor(int level) => 1 + 0.10 * (Math.Clamp(level, 1, 1000) / 5);
+    /// <summary>Level 1..100 in steps of 5; +10% power per 5 levels.</summary>
+    public static double LevelFactor(int level) => 1 + 0.10 * (Math.Clamp(level, 1, 100) / 5);
 
-    /// <summary>Sub-stats unlocked at this item level: one every 100 levels.</summary>
-    public static int SubStatCount(int level) => Math.Clamp(level, 1, 1000) / 100;
+    /// <summary>Rarity drives power exponentially so it dominates over level
+    /// (a Lv1 Legendary beats a Lv30 Broken). x1.35 per tier.</summary>
+    public static double RarityFactor(int tier) => Math.Pow(1.35, Math.Clamp(tier, 1, 21) - 1);
 
-    /// <summary>Each rarity tier adds +50% power to the primary and every sub-stat.</summary>
-    public static double RarityMult(int tier) => 1 + 0.5 * (Math.Clamp(tier, 1, 21) - 1);
+    /// <summary>Sub-stat count is set ENTIRELY by rarity: one per tier above Broken.</summary>
+    public static int SubStatCount(int tier) => Math.Clamp(tier, 1, 21) - 1;
 
     /// <summary>
-    /// Resolves an item by LEVEL and RARITY:
-    ///  - primary grows +10% per 5 levels, and +50% per rarity tier;
-    ///  - one sub-stat per 100 levels PLUS one extra per rarity tier above Broken;
-    ///  - every sub-stat is scaled by both level and rarity.
+    /// Resolves an item from LEVEL (1..100) and RARITY (tier 1..21):
+    ///  - sub-stat COUNT depends only on rarity (one per tier above Broken);
+    ///  - power of the primary AND every sub-stat = base x levelFactor x rarityFactor,
+    ///    where rarity dominates (Lv1 Legendary &gt; Lv30 Broken).
     /// </summary>
     public static Resolved Resolve(string shape, int level, int rarityTier)
     {
         var spec = Specs.TryGetValue(shape, out var s) ? s : Specs["sword"];
-        level = Math.Clamp(level, 1, 1000);
+        level = Math.Clamp(level, 1, 100);
         rarityTier = Math.Clamp(rarityTier, 1, 21);
-        var lf = LevelFactor(level);
-        var rm = RarityMult(rarityTier);
+        var power = LevelFactor(level) * RarityFactor(rarityTier);
 
         var primaryStat = spec.Base.Keys.First();
-        var primaryValue = spec.Base[primaryStat] * PrimaryScale * lf * rm;
+        var primaryValue = spec.Base[primaryStat] * PrimaryScale * power;
 
         var passives = new List<string>();
         var perks = new List<Perk>();
-        var count = SubStatCount(level) + (rarityTier - 1);
+        var count = SubStatCount(rarityTier);
         for (var k = 0; k < count; k++)
         {
             var stat = spec.Track[k % spec.Track.Length];
-            var v = PerkBase[stat] * lf * rm;
+            var v = PerkBase[stat] * power;
             passives.Add(Describe(stat, v));
             perks.Add(new Perk(stat, v));
         }

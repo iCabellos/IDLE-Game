@@ -286,9 +286,9 @@ public static class IdleEngine
     /// </summary>
     private static int ItemLevelFor(int heroLevel, int slotIndex)
     {
-        var raw = slotIndex * 100 + 60 + Math.Min(heroLevel, 20) * 5;
+        var raw = 10 + slotIndex * 12 + Math.Min(heroLevel, 100);
         var rounded = (int)Math.Round(raw / 5.0) * 5;
-        return Math.Clamp(rounded, 5, 1000);
+        return Math.Clamp(rounded, 5, 100);
     }
 
     /// <summary>
@@ -297,7 +297,7 @@ public static class IdleEngine
     /// (Placeholder until real per-character ItemInstance loadouts are wired.)
     /// </summary>
     private static int RarityTierFor(int heroLevel, int slotIndex) =>
-        Math.Clamp(1 + slotIndex + Math.Min(heroLevel, 30) / 10, 1, 8);
+        Math.Clamp(2 + slotIndex + Math.Min(heroLevel, 40) / 8, 1, 12);
 
     private static string Evaluate(IReadOnlyList<string> draw)
     {
@@ -336,7 +336,7 @@ public static class IdleEngine
                 s.PhaseIndex = 0;
                 foreach (var h in s.Heroes)
                 {
-                    h.Level++;
+                    h.Level = Math.Min(h.Level + 1, 100);
                     h.MaxHp = HeroMaxHp(h.Level);
                     h.Hp = h.MaxHp;
                     h.Luck = 20 + h.Level * 8;
