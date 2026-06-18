@@ -244,12 +244,14 @@ public static class IdleEngine
         {
             var shape = ShapeFor(kind, actor.Archetype);
             var slotIndex = Math.Max(0, actor.SlotKinds.IndexOf(kind));
-            var tier = RarityTierFor(actor.Level, slotIndex);
-            var r = ItemPower.Resolve(shape, tier, actor.Level);
+            var itemLevel = ItemLevelFor(actor.Level, slotIndex);
+            var tier = RarityForLevel(itemLevel);
+            var r = ItemPower.Resolve(shape, itemLevel);
             items.Add(new ReelItem
             {
                 Kind = kind,
                 Shape = shape,
+                Level = itemLevel,
                 RarityTier = tier,
                 Rarity = ItemPower.RarityName(tier),
                 Primary = r.Primary,
@@ -277,8 +279,21 @@ public static class IdleEngine
         _ => "sword",
     };
 
-    private static int RarityTierFor(int level, int slotIndex) =>
-        Math.Clamp(2 + (int)Math.Round(level * 0.9) + (slotIndex % 3), 1, 21);
+    /// <summary>
+    /// Item level (multiples of 5, 1..1000). Spread across slots so a team shows
+    /// a variety of item levels / sub-stat counts; grows with hero progress.
+    /// (Placeholder until real per-character ItemInstance loadouts are wired.)
+    /// </summary>
+    private static int ItemLevelFor(int heroLevel, int slotIndex)
+    {
+        var raw = slotIndex * 100 + 60 + Math.Min(heroLevel, 20) * 5;
+        var rounded = (int)Math.Round(raw / 5.0) * 5;
+        return Math.Clamp(rounded, 5, 1000);
+    }
+
+    /// <summary>Rarity tier (1..21, for colour/label) derived from item level.</summary>
+    private static int RarityForLevel(int level) =>
+        Math.Clamp(1 + (int)Math.Round(level * 20.0 / 1000.0), 1, 21);
 
     private static string Evaluate(IReadOnlyList<string> draw)
     {
@@ -568,7 +583,7 @@ public static class IdleEngine
                 e.Hp > 0, e.IsBoss, e.Id == hitEnemyId)).ToList(),
             Reel: new ReelView(
                 s.Reel.Items.Select(it => new ReelItemView(
-                    it.Kind, it.Shape, it.RarityTier, it.Rarity, it.Primary, it.Passives)).ToList(),
+                    it.Kind, it.Shape, it.Level, it.RarityTier, it.Rarity, it.Primary, it.Passives)).ToList(),
                 s.Reel.Combo,
                 s.Reel.Multiplier,
                 s.Reel.MaxRarityTier,

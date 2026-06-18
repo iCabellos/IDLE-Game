@@ -51,6 +51,7 @@ public sealed record SubStatView(
 public sealed record ReelItemView(
     string Kind,
     string Shape,
+    int Level,
     int RarityTier,
     string Rarity,
     string Primary,

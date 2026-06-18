@@ -61,11 +61,9 @@ public static class ItemPower
 
     private static string Describe(Stat s, double v) => $"+{FormatValue(s, v)} {Label(s)}";
 
-    private static readonly double[] RarityPow =
-    {
-        0.30, 0.50, 0.70, 0.90, 1.10, 1.30, 1.60, 2.00, 2.50, 3.00, 4.00,
-        5.50, 7.00, 9.00, 12.0, 16.0, 22.0, 30.0, 42.0, 60.0, 100.0,
-    };
+    // Primary stat at item level 1 is ~30% of the shape base (so a Lv1 sword
+    // reads "+2 Phys Atk"); +10% per 5 levels from there.
+    private const double PrimaryScale = 0.30;
 
     private static readonly string[] RarityNames =
     {
@@ -135,33 +133,36 @@ public static class ItemPower
     public sealed record Resolved(
         Stat PrimaryStat, double PrimaryValue, string Primary, List<string> Passives, List<Perk> Perks);
 
-    /// <summary>Resolves an item into its headline stat (typed + value) + buff list.</summary>
-    public static Resolved Resolve(string shape, int tier, int level)
+    /// <summary>+10% per 5 item levels (linear).</summary>
+    public static double LevelFactor(int level) => 1 + 0.10 * (Math.Clamp(level, 1, 1000) / 5);
+
+    /// <summary>Sub-stats unlocked at this item level: one every 100 levels.</summary>
+    public static int SubStatCount(int level) => Math.Clamp(level, 1, 1000) / 100;
+
+    /// <summary>
+    /// Resolves an item by LEVEL: a primary stat that grows +10% per 5 levels,
+    /// plus one sub-stat per 100 levels (each also scaled by level).
+    /// </summary>
+    public static Resolved Resolve(string shape, int level)
     {
         var spec = Specs.TryGetValue(shape, out var s) ? s : Specs["sword"];
-        tier = Math.Clamp(tier, 1, 21);
-        var p = RarityPow[tier - 1];
-        var lvl = 1 + 0.10 * (level - 1);
+        level = Math.Clamp(level, 1, 1000);
+        var lf = LevelFactor(level);
 
-        var stats = new Dictionary<Stat, double>();
-        foreach (var kv in spec.Base)
-        {
-            stats[kv.Key] = kv.Value * p * lvl;
-        }
+        var primaryStat = spec.Base.Keys.First();
+        var primaryValue = spec.Base[primaryStat] * PrimaryScale * lf;
 
         var passives = new List<string>();
         var perks = new List<Perk>();
-        for (var t = 2; t <= tier; t++)
+        var count = SubStatCount(level);
+        for (var k = 0; k < count; k++)
         {
-            var stat = spec.Track[(t - 2) % spec.Track.Length];
-            var v = PerkBase[stat] * RarityPow[t - 1];
-            stats[stat] = stats.GetValueOrDefault(stat) + v;
+            var stat = spec.Track[k % spec.Track.Length];
+            var v = PerkBase[stat] * lf;
             passives.Add(Describe(stat, v));
             perks.Add(new Perk(stat, v));
         }
 
-        var primaryStat = spec.Base.Keys.First();
-        var primaryValue = stats[primaryStat];
         return new Resolved(primaryStat, primaryValue, Describe(primaryStat, primaryValue), passives, perks);
     }
 }

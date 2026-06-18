@@ -80,6 +80,7 @@ public sealed class ReelItem
 {
     public string Kind { get; set; } = string.Empty;
     public string Shape { get; set; } = "sword";
+    public int Level { get; set; } = 1;
     public int RarityTier { get; set; } = 1;
     public string Rarity { get; set; } = "Broken";
     public string Primary { get; set; } = string.Empty;

@@ -66,6 +66,7 @@ class ServerReelItem {
   ServerReelItem({
     required this.kind,
     required this.shape,
+    required this.level,
     required this.rarityTier,
     required this.rarity,
     required this.primary,
@@ -74,6 +75,7 @@ class ServerReelItem {
 
   final String kind;
   final String shape;
+  final int level;
   final int rarityTier;
   final String rarity;
   final String primary;
@@ -82,6 +84,7 @@ class ServerReelItem {
   factory ServerReelItem.fromJson(Map<String, dynamic> j) => ServerReelItem(
         kind: j['kind'] as String,
         shape: j['shape'] as String,
+        level: (j['level'] as num?)?.toInt() ?? 1,
         rarityTier: (j['rarityTier'] as num).toInt(),
         rarity: j['rarity'] as String,
         primary: j['primary'] as String,

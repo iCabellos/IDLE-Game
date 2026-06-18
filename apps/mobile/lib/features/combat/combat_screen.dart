@@ -799,7 +799,7 @@ class _CellState extends State<_Cell> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(it.rarity.toUpperCase(),
+                        Text('${it.rarity.toUpperCase()} · LV ${it.level}',
                             style: _retro(7, color: color, w: FontWeight.w900), maxLines: 1),
                         const SizedBox(height: 1),
                         Text(it.primary.toUpperCase(),
