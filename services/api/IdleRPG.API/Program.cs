@@ -268,11 +268,16 @@ app.MapCombatEndpoints();
 // ---------------------------------------------------------------------
 // Recurring jobs: the idle tick advances every active team each minute
 // (one pass = the 60 elapsed 1-second ticks since the previous pass).
+// Resolved via DI (IRecurringJobManager) — the static RecurringJob API
+// needs JobStorage.Current, which is not set under the test host.
 // ---------------------------------------------------------------------
-RecurringJob.AddOrUpdate<IdleTickJob>(
-    IdleTickJob.JobId,
-    job => job.RunAsync(CancellationToken.None),
-    IdleTickJob.CronEveryMinute);
+using (var jobScope = app.Services.CreateScope())
+{
+    jobScope.ServiceProvider.GetRequiredService<IRecurringJobManager>().AddOrUpdate<IdleTickJob>(
+        IdleTickJob.JobId,
+        job => job.RunAsync(CancellationToken.None),
+        IdleTickJob.CronEveryMinute);
+}
 
 var hangfireUser = builder.Configuration["HANGFIRE_DASHBOARD_USER"];
 var hangfirePass = builder.Configuration["HANGFIRE_DASHBOARD_PASS"];
