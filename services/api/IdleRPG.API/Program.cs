@@ -8,6 +8,7 @@ using IdleRPG.API.Middleware;
 using IdleRPG.Application;
 using IdleRPG.Infrastructure;
 using IdleRPG.Infrastructure.Configuration;
+using IdleRPG.Infrastructure.Idle;
 using IdleRPG.Infrastructure.Persistence;
 using IdleRPG.Infrastructure.Persistence.Seed;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -262,6 +263,16 @@ app.MapHealthChecks("/health", new HealthCheckOptions
 // ---------------------------------------------------------------------
 app.MapAuthEndpoints();
 app.MapItemEndpoints();
+app.MapCombatEndpoints();
+
+// ---------------------------------------------------------------------
+// Recurring jobs: the idle tick advances every active team each minute
+// (one pass = the 60 elapsed 1-second ticks since the previous pass).
+// ---------------------------------------------------------------------
+RecurringJob.AddOrUpdate<IdleTickJob>(
+    IdleTickJob.JobId,
+    job => job.RunAsync(CancellationToken.None),
+    IdleTickJob.CronEveryMinute);
 
 var hangfireUser = builder.Configuration["HANGFIRE_DASHBOARD_USER"];
 var hangfirePass = builder.Configuration["HANGFIRE_DASHBOARD_PASS"];

@@ -75,7 +75,7 @@ El plan maestro fija versiones "exactas", pero **el repo ya usa versiones más n
 | F1 | Domain + Auth Steam (JWT) | ✅ Implementado |
 | F2 | Database Schema + Migrations + Seed | ✅ Implementado |
 | F3 | Motor de Items | ✅ Implementado |
-| F4 | Combate + Idle Engine | ❌ No implementado |
+| F4 | Combate + Idle Engine | ✅ Implementado (motor por turnos estilo HSR: action value/Speed, skill points compartidos, ultimates por energía, toughness/weakness break; `IdleSimulator` + `IdleTickJob` + endpoints `/combat/*`) |
 | F5 | Steam Integration | 🟡 Esqueleto (`SteamInventoryService` stub; vars `STEAM_*`) |
 | F6 | Anti-Bot System | 🟡 Solo entidad `AntiBotEvent` + enums + `RiskScore` (sin engine/middleware) |
 | F7 | Flutter App | 🟡 Preview temprana (login, dashboard, inventory, widget mock) |
@@ -99,7 +99,7 @@ Antes de tocar una fase, **no asumas** que existe lo de fases posteriores; verif
 - **Stat rolling** (`ItemFactory`): Box-Muller, varianza ±15% clamp `[0.85, 1.15]`, `baseStat × rarityMult × roll`. Passive slots por rareza (0→5). Rarezas FIXED se copian sin rollear.
 - **Persistencia**: snake_case automático en `AppDbContext`, soft delete global (`DeletedAt == null`), `created_at`/`updated_at`, índices únicos `users.steam_id` e `item_instances.steam_inventory_id`.
 - **Esquema de Redis keys** (se establece en F4; usar exactamente): `idle:state:{userId}`, `idle:session:{userId}`, `stats:{characterId}` (TTL 1h, invalidar al equipar), `steam:owns:{steamId}:{itemId}`, `antibot:score:{userId}`, `ratelimit:{ip}`, `steam:inventory:{steamId}`, `desynced:{userId}:{itemId}`.
-- **Combate / offline** (F4, pendiente): `EffectiveResistance = clamp(resist − pen, 0, 0.90)`; `FinalDamage = base × (crit ? critMult : 1) × (1 − effResist)`; `OfflineEfficiency` = 1.0 hasta 36h, luego −5%/día, mínimo 1%. 1 tick = 1s; `IdleTickJob` cada 60s simula 60 ticks; benchmark 10k ticks < 100ms.
+- **Combate / offline** (F4, implementado en `IdleRPG.Domain/Combat`): `EffectiveResistance = clamp(resist − pen, 0, 0.90)`; `FinalDamage = base × (crit ? critMult : 1) × (1 − effResist)`; `OfflineEfficiency` = 1.0 hasta 36h, luego −5%/día, mínimo 1%. 1 tick = 1s = 10 AV; `IdleTickJob` (Hangfire, cron minutely) avanza el estado de cada usuario; benchmark 10k ticks < 100ms verificado en tests. Diseño por turnos estilo HSR: timeline por action value (`10000/Speed`), pool de 5 skill points compartidos (básico +1, skill −1), ultimates por energía (coste 100–140 por clase, acción gratuita al cargarse), toughness/weakness break (básico 30 / skill 60 / ult 90; al romper: break damage, retraso de acción y +25% daño recibido) y IA por rol (tank aggro ×4, healer cura <65%, support buffea). Enemigos en `EnemyCatalog` (zonas de 10 waves, boss en la 10) con ataque superlineal (presión `1+L/150`, cap ×4) para que existan muros de progresión.
 - **Anti-bot** (F6, pendiente): risk score 0–100 en Redis (TTL 24h), decae −1 cada 6h; los umbrales disparan acciones (banner UI, −50% drop, sin market, suspensión, ban). El sistema debe ser invisible para usuarios legítimos; nunca bloquear `/auth`, `/health`, `/swagger`.
 
 ## Comandos rápidos (desde la raíz)

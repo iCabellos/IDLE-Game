@@ -34,6 +34,10 @@ public record CharacterStats
     public float DropRate { get; init; }        // 1.0 = 100% base
     public float Luck { get; init; }            // afecta rarity roll
 
+    // Combate por turnos (F4) — cadencia y break
+    public float Speed { get; init; }       // action value = 10000 / Speed
+    public float BreakEffect { get; init; } // 0.0 = +0% break damage
+
     /// <summary>An all-zero stat block; convenient as an aggregation seed.</summary>
     public static CharacterStats Zero { get; } = new();
 
@@ -62,6 +66,8 @@ public record CharacterStats
         [nameof(IdleEfficiency)] = IdleEfficiency,
         [nameof(DropRate)] = DropRate,
         [nameof(Luck)] = Luck,
+        [nameof(Speed)] = Speed,
+        [nameof(BreakEffect)] = BreakEffect,
     };
 
     /// <summary>Rebuilds a stat block from a name→value dictionary.</summary>
@@ -87,6 +93,8 @@ public record CharacterStats
             IdleEfficiency = Get(nameof(IdleEfficiency)),
             DropRate = Get(nameof(DropRate)),
             Luck = Get(nameof(Luck)),
+            Speed = Get(nameof(Speed)),
+            BreakEffect = Get(nameof(BreakEffect)),
         };
     }
 

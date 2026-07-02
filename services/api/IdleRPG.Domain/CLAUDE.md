@@ -96,7 +96,7 @@ Desde la raiz del repo (`Makefile` y comandos):
 
 ## Pendiente / Planificado (no esta aqui todavia)
 El plan menciona piezas que NO viven (aun) en Domain o que dependen de fases posteriores:
-- **F4 (Combat/Idle engine)** — Planificado. Formulas de combate (`EffectiveResistance`, `FinalDamage`, `OfflineEfficiency`), tick de 1s, `IdleTickJob`. Solo existen aqui los stats base (`CharacterStats`, caps); el motor no esta implementado.
+- **F4 (Combat/Idle engine)** — **Implementado** en `Combat/` (`CombatEngine` por turnos estilo HSR con action value/skill points/energía/toughness break, `IdleSimulator`, `IdleState`, `CombatFormulas`, specs `HeroSpec`/`EnemySpec`) y `GameData/` (`ClassKits`, `EnemyCatalog`, `XpCurve`). `CharacterStats` incorpora `Speed` y `BreakEffect`; enums nuevos `DamageType` y `EnemyArchetype`.
 - **F6 (Anti-bot)** — Implementado SOLO el modelo: `AntiBotEvent`, `BotEventType`/`BotEventTypeData`, `AntiBotRiskLevel`, `RiskScore`. El scoring en Redis, decay (-1 cada 6h, TTL 24h) y enforcement son Planificados (fuera de Domain).
 - **F5 (Steam)** — esqueleto/stub en `Infrastructure`; en Domain solo viven `SteamId`, `Item.SteamMarketHashName`/`IsTradeable`, `ItemInstance.SteamInventoryId`/`LastSteamValidation`.
 - Marcar siempre como "Implementado" vs "Planificado (Fase Fx)" cualquier referencia a estas areas al editar codigo o docs aqui.

@@ -104,7 +104,7 @@ Falla al arrancar (`InvalidOperationException`) si faltan `POSTGRES_URL`, `REDIS
 ## Endpoints planificados (aún NO implementados)
 
 Del plan maestro, faltan estos grupos (no asumir que existen):
-- `CombatEndpoints` (`/combat`): `/state`, `/reconnect`, `/zones`, `/zone/{id}/enter`, `/history` — **F4**.
+- `CombatEndpoints` (`/combat`): **implementados** `/state` (avanza sim + estado legible), `/claim` (aplica XP pendiente) y `/zones`; quedan `/reconnect`, `/zone/{id}/enter`, `/history` para iteraciones futuras.
 - `SteamEndpoints` (`/steam`): `/inventory`, `/sync`, `/sync/status`, `/market/price/{hash}`, `/webhook` — **F5**.
 - `AdminEndpoints` (`/admin/antibot/*`, `[RequireRole("admin")]`) y `AntiBotMiddleware` — **F6**.
 - `MetaEndpoints` (`/meta/*`) — **F9**.
