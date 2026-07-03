@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../core/models/inventory_item.dart';
+import '../../core/pixel/pixel_sprite.dart';
+import '../../core/pixel/pixel_widgets.dart';
+import '../../core/pixel/sprites.dart';
 import '../../core/theme/app_theme.dart';
 import 'widgets/item_card.dart';
 
-/// Grid view of the player's inventory, backed by `/items/inventory`.
+/// The party's loot bag, backed by `/items/inventory`.
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
 
@@ -24,52 +27,77 @@ class _InventoryScreenState extends State<InventoryScreen> {
         : mockInventory.where((i) => i.slot == _slotFilter).toList();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Inventory')),
-      body: Column(
-        children: [
-          SizedBox(
-            height: 48,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              itemCount: slots.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (context, index) {
-                final slot = slots[index];
-                final selected = slot == _slotFilter;
-                return ChoiceChip(
-                  label: Text(slot),
-                  selected: selected,
-                  onSelected: (_) => setState(() => _slotFilter = slot),
-                  selectedColor: AppColors.blue,
-                  backgroundColor: AppColors.surface,
-                  labelStyle: TextStyle(
-                    color: selected ? AppColors.text : AppColors.muted,
-                    fontSize: 12,
-                  ),
-                );
-              },
-            ),
-          ),
-          Expanded(
-            child: GridView.builder(
-              padding: const EdgeInsets.all(16),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 0.8,
+      body: PixelBackground(
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Row(
+                  children: [
+                    PixelArt(Sprites.satchel, size: 34),
+                    SizedBox(width: 10),
+                    PixelText('LOOT BAG', size: 18),
+                  ],
+                ),
               ),
-              itemCount: items.length,
-              itemBuilder: (context, index) {
-                return ItemCard(item: items[index])
-                    .animate()
-                    .fadeIn(delay: (40 * index).ms, duration: 300.ms)
-                    .slideY(begin: 0.1, end: 0);
-              },
-            ),
+              SizedBox(
+                height: 44,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  itemCount: slots.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final slot = slots[index];
+                    final selected = slot == _slotFilter;
+                    return GestureDetector(
+                      onTap: () => setState(() => _slotFilter = slot),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: selected ? AppColors.blue : AppColors.surface,
+                          border: Border.all(
+                            color: selected
+                                ? AppColors.accent
+                                : const Color(0xFF0B1220),
+                            width: 2,
+                          ),
+                        ),
+                        child: PixelText(
+                          slot.toUpperCase(),
+                          size: 10,
+                          color: selected ? AppColors.text : AppColors.muted,
+                          shadow: false,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              Expanded(
+                child: GridView.builder(
+                  padding: const EdgeInsets.all(16),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    mainAxisSpacing: 14,
+                    crossAxisSpacing: 14,
+                    childAspectRatio: 0.72,
+                  ),
+                  itemCount: items.length,
+                  itemBuilder: (context, index) {
+                    return ItemCard(item: items[index])
+                        .animate()
+                        .fadeIn(delay: (40 * index).ms, duration: 300.ms)
+                        .slideY(begin: 0.1, end: 0);
+                  },
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

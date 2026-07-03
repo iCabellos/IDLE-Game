@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/models/inventory_item.dart';
+import '../../../core/pixel/pixel_sprite.dart';
+import '../../../core/pixel/pixel_widgets.dart';
+import '../../../core/pixel/sprites.dart';
 import '../../../core/theme/app_theme.dart';
 
-/// A single inventory tile. Border/glow color encodes rarity via
-/// [RarityColors] — no numeric stats are shown on the card itself.
+/// A single inventory slot, game style: dark inset cell, hand-drawn item
+/// sprite, rarity-colored pixel frame. No numeric stats are ever shown.
 class ItemCard extends StatelessWidget {
   const ItemCard({super.key, required this.item});
 
@@ -18,67 +21,63 @@ class ItemCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color, width: isLegendary ? 2 : 1.5),
-        boxShadow: isLegendary
-            ? [
-                BoxShadow(
-                  color: color.withValues(alpha: 0.45),
-                  blurRadius: 12,
-                  spreadRadius: 1,
-                ),
-              ]
-            : null,
+        border: Border.all(color: const Color(0xFF0B1220), width: 3),
+        boxShadow: [
+          BoxShadow(color: color.withValues(alpha: isLegendary ? 0.55 : 0.0), blurRadius: 14),
+          const BoxShadow(offset: Offset(3, 3), color: Color(0xFF0B1220)),
+        ],
       ),
-      padding: const EdgeInsets.all(10),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Icon(_iconForSlot(item.slot), color: color, size: 22),
-              const Spacer(),
-              if (item.equipped)
-                const Icon(Icons.check_circle, color: AppColors.success, size: 16),
-            ],
-          ),
-          const Spacer(),
-          Text(
-            item.name,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppColors.text,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+          // Item art in an inset "slot" cell.
+          Expanded(
+            child: Container(
+              margin: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0B1220),
+                border: Border.all(color: color, width: 2),
+              ),
+              child: Stack(
+                children: [
+                  Center(
+                    child: PixelArt(SpriteLibrary.forSlot(item.slot), size: 52),
+                  ),
+                  if (item.equipped)
+                    Positioned(
+                      top: 2,
+                      right: 2,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                        color: AppColors.success,
+                        child: const PixelText('E', size: 8, shadow: false),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            item.rarity,
-            style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w500),
-          ),
-          if (item.setName != null)
-            Text(
-              item.setName!,
-              style: const TextStyle(color: AppColors.muted, fontSize: 10),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(7, 0, 7, 7),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                PixelText(item.name.toUpperCase(), size: 8, maxLines: 2),
+                const SizedBox(height: 3),
+                PixelText(item.rarity.toUpperCase(), size: 8, color: color, shadow: false),
+                if (item.setName != null)
+                  PixelText(
+                    item.setName!.toUpperCase(),
+                    size: 7,
+                    color: AppColors.muted,
+                    shadow: false,
+                    maxLines: 1,
+                  ),
+              ],
             ),
+          ),
         ],
       ),
     );
   }
-
-  IconData _iconForSlot(String slot) => switch (slot) {
-        'Head' => Icons.face,
-        'Chest' => Icons.checkroom,
-        'Legs' => Icons.accessibility_new,
-        'Feet' => Icons.directions_walk,
-        'Hands' => Icons.back_hand,
-        'Ring' => Icons.circle_outlined,
-        'Amulet' => Icons.diamond_outlined,
-        'MainHand' => Icons.gavel,
-        'OffHand' => Icons.shield_outlined,
-        'TwoHand' => Icons.fitness_center,
-        _ => Icons.auto_awesome,
-      };
 }

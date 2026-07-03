@@ -75,9 +75,11 @@ class AppTheme {
       cardTheme: const CardThemeData(
         color: AppColors.surface,
       ),
+      // Retro bitmap-font feel: the bundled pixel font everywhere.
       textTheme: base.textTheme.apply(
         bodyColor: AppColors.text,
         displayColor: AppColors.text,
+        fontFamily: 'PressStart2P',
       ),
     );
   }

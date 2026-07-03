@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../../core/models/character_status.dart';
+import '../../../core/pixel/pixel_sprite.dart';
+import '../../../core/pixel/pixel_widgets.dart';
+import '../../../core/pixel/sprites.dart';
 import '../../../core/theme/app_theme.dart';
 
-/// Surfaces the character's current high-level state.
+/// Surfaces the party's current high-level state as a pixel-art banner.
 ///
 /// Never renders raw stat numbers — only the descriptive [CharacterStatus].
 class CharacterStatusCard extends StatelessWidget {
@@ -17,64 +20,47 @@ class CharacterStatusCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = status.color;
 
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: color.withValues(alpha: 0.6), width: 1.5),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
+    return PixelPanel(
+      border: color,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          PixelArt(status.sprite, size: 56)
+              .animate(onPlay: (c) => c.repeat(reverse: true))
+              .scale(
+                begin: const Offset(1, 1),
+                end: const Offset(1.08, 1.08),
+                duration: 1400.ms,
+                curve: Curves.easeInOut,
               ),
-              child: Icon(status.icon, color: color, size: 28),
-            ).animate(onPlay: (c) => c.repeat(reverse: true)).scale(
-                  begin: const Offset(1, 1),
-                  end: const Offset(1.06, 1.06),
-                  duration: 1400.ms,
-                  curve: Curves.easeInOut,
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                PixelText(status.label.toUpperCase(), size: 15, color: color),
+                const SizedBox(height: 6),
+                PixelText(
+                  status.description,
+                  size: 10,
+                  color: AppColors.muted,
+                  shadow: false,
                 ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Status: ${status.label}',
-                    style: TextStyle(
-                      color: color,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const PixelArt(Sprites.banner, size: 14),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: PixelText(zoneName.toUpperCase(),
+                          size: 10, color: AppColors.text, maxLines: 1),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    status.description,
-                    style: const TextStyle(color: AppColors.muted, fontSize: 13),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      const Icon(Icons.map_outlined, color: AppColors.muted, size: 16),
-                      const SizedBox(width: 6),
-                      Text(
-                        zoneName,
-                        style: const TextStyle(color: AppColors.text, fontSize: 13),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.08, end: 0);
   }

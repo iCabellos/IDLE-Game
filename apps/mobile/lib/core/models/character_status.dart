@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../pixel/pixel_sprite.dart';
+import '../pixel/sprites.dart';
 import '../theme/app_theme.dart';
 
 /// High-level character states surfaced to the player.
@@ -50,5 +52,14 @@ extension CharacterStatusX on CharacterStatus {
         CharacterStatus.stuck => Icons.hourglass_bottom,
         CharacterStatus.rewardsReady => Icons.card_giftcard,
         CharacterStatus.steamDesynced => Icons.sync_problem,
+      };
+
+  /// Hand-drawn pixel icon for this status (the game-facing visual).
+  PixelSprite get sprite => switch (this) {
+        CharacterStatus.winning => Sprites.banner,
+        CharacterStatus.danger => Sprites.skull,
+        CharacterStatus.stuck => Sprites.hourglass,
+        CharacterStatus.rewardsReady => Sprites.chest,
+        CharacterStatus.steamDesynced => Sprites.brokenLink,
       };
 }
