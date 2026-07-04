@@ -1,6 +1,6 @@
 # services/api — Backend .NET (IdleRPG.sln)
 
-Solucion .NET 8 LTS del backend de IDLE-RPG. Implementa Clean Architecture estricta con CQRS (MediatR), persistencia EF Core 8 sobre PostgreSQL 16 (Npgsql) y cache Redis 7.2 (StackExchange.Redis). Estado: **F0-F3 implementadas** (monorepo+infra, Domain+Auth Steam JWT, DB schema/migraciones/seed, motor de items). F4-F9 mayormente **planificadas**.
+Solucion .NET 8 LTS del backend de IDLE-RPG. Implementa Clean Architecture estricta con CQRS (MediatR), persistencia EF Core 8 sobre PostgreSQL 16 (Npgsql) y cache Redis 7.2 (StackExchange.Redis). Estado: **F0-F4 implementadas** (monorepo+infra, Domain+Auth Steam JWT, DB schema/migraciones/seed, motor de items, combate/idle engine estilo HSR). F5-F9 mayormente **planificadas**.
 
 Ver tambien: `/CLAUDE.md` (indice raiz del monorepo, plan maestro y reglas de oro de fases).
 
@@ -124,4 +124,5 @@ Vars requeridas (faltar `POSTGRES_URL`, `REDIS_URL` o `JWT_SECRET` lanza `Invali
 
 - **Implementado**: F0 (infra/monorepo), F1 (Domain + Auth Steam/JWT: endpoints `/auth/*`, JWT HS256, refresh tokens), F2 (schema EF + migraciones + seed), F3 (motor de items: `ItemFactory`/`ItemValidator`/`SetBonusCalculator`/`StatAggregator` + endpoints `/items/*`).
 - **Parcial / esqueleto**: F5 Steam (`SteamInventoryService` stub; vars STEAM en `.env`). F6 Anti-bot (solo entidad `AntiBotEvent` + enums `AntiBotRiskLevel`/`BotEventType` en Domain; `RiskScore` value object).
-- **Planificado (NO implementado)**: F4 motor combate/idle (Hangfire `IdleTickJob`, Redis keys `idle:state:*`/`stats:*`, formulas de daño/offline). F8 widget Android, F9 meta. El `services/worker` y `services/steam-bridge` reales.
+- **Implementado (F4)**: motor de combate por turnos estilo HSR en `Domain/Combat` (`CombatEngine`, `IdleSimulator`, `CombatFormulas`), `ClassKits`/`EnemyCatalog`/`XpCurve` en `Domain/GameData`, `IdleProgressService` (Application), `RedisIdleStateStore` + `IdleTickJob` Hangfire (Infrastructure, recurring cada 60s) y endpoints `/combat/state|claim|zones` (grupo autenticado). Redis keys en uso: `idle:state:{userId}`, `stats:{characterId}`.
+- **Planificado (NO implementado)**: F8 widget Android, F9 meta. El `services/worker` y `services/steam-bridge` reales (Hangfire sigue hosteado in-process en la API).

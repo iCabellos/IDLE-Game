@@ -1,5 +1,6 @@
 using FluentValidation;
 using IdleRPG.Application.Common.Behaviors;
+using IdleRPG.Application.Interfaces.Combat;
 using IdleRPG.Application.Interfaces.Items;
 using IdleRPG.Application.Services;
 using MediatR;
@@ -19,6 +20,7 @@ public static class DependencyInjection
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 
         services.AddScoped<ICharacterStatsService, CharacterStatsService>();
+        services.AddScoped<IIdleProgressService, IdleProgressService>();
 
         return services;
     }

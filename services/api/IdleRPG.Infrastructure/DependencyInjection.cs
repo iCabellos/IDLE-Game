@@ -1,9 +1,11 @@
 using IdleRPG.Application.Interfaces.Auth;
 using IdleRPG.Application.Interfaces.Caching;
+using IdleRPG.Application.Interfaces.Combat;
 using IdleRPG.Application.Interfaces.Items;
 using IdleRPG.Domain.Interfaces;
 using IdleRPG.Infrastructure.Auth;
 using IdleRPG.Infrastructure.Caching;
+using IdleRPG.Infrastructure.Idle;
 using IdleRPG.Infrastructure.Items;
 using IdleRPG.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Http;
@@ -37,6 +39,10 @@ public static class DependencyInjection
         services.AddScoped<ISetBonusCalculator, SetBonusCalculator>();
         services.AddScoped<IStatAggregator, StatAggregator>();
         services.AddScoped<ISteamInventoryService, SteamInventoryService>();
+
+        // Idle / combat engine (F4)
+        services.AddScoped<IIdleStateStore, RedisIdleStateStore>();
+        services.AddScoped<IdleTickJob>();
 
         return services;
     }

@@ -66,7 +66,7 @@ IdleRPG.Infrastructure/
 | Auth (JwtTokenService, SteamAuthService, CurrentUserService) | **Implementado** (F1) |
 | Motor de items (ItemFactory, ItemValidator, SetBonusCalculator, StatAggregator) | **Implementado** (F3) |
 | SteamInventoryService | **Stub** — devuelve siempre `true`. Implementacion real **Planificada (F5)** |
-| BackgroundJobs / IdleTickJob / motor de combate | **Planificado (F4)** — NO existe codigo aun (el paquete Hangfire ya esta referenciado en el csproj, pero no hay jobs) |
+| Idle engine (`Idle/RedisIdleStateStore`, `Idle/IdleTickJob` recurring 60s) | **Implementado** (F4) — el motor puro vive en Domain/Combat; aqui el store Redis (`idle:state:{userId}`, TTL 30d) y el job Hangfire |
 | Anti-bot engine (risk score en Redis, decay, thresholds) | **Planificado (F6)** — solo existe la entidad `AntiBotEvent` + su `Configuration`; no hay servicio que calcule risk |
 | Steam Market / desync reconciliation | **Planificado (F5)** |
 

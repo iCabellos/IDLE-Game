@@ -148,7 +148,7 @@ Todos los dobles in-memory viven en un unico archivo `Fakes.cs` (namespace `Idle
 - **F3 Integration (DB)**: `SetBonusSchemaTests` — tabla `items_set_bonuses`, seed de 2 bonuses Ironclad (passive "Unbreakable" en 4-piezas), unicidad de threshold por set, idempotencia.
 
 ### Planificado (aun SIN tests aqui, no inventar cobertura)
-- **F4 Combat/Idle engine**: sin tests. Cuando se implemente, esperar pruebas de `EffectiveResistance`, `FinalDamage`, `OfflineEfficiency` (1.0 hasta 36h, -5%/dia, min 1%), tick 1s / `IdleTickJob` 60s, y el benchmark **10k ticks < 100ms**. Redis keys `idle:state:{userId}`, `idle:session:{userId}`, `stats:{characterId}`.
+- **F4 Combat/Idle engine**: **Implementado** — `Domain/Combat/` (`CombatFormulasTests`, `CombatEngineTests`, `CombatBalanceTests` con bands de duracion/muros y el benchmark **10k ticks < 100ms**) y `Application/Combat/IdleProgressAndHandlersTests` (starter team, claim con level-ups e invalidacion de `stats:{id}`, zonas). Traits: `[Trait("Phase","F4")]` y `[Trait("Category","CombatEngine")]`.
 - **F5 Steam**: solo existe `FakeSteamInventoryService`/`FakeSteamAuthService`; el `SteamInventoryService` real es stub, sin tests de integracion contra el bridge.
 - **F6 Anti-bot**: cubierto SOLO a nivel Domain (`RiskScore` + `AntiBotRiskLevel`). Sin tests del scoring en Redis (TTL 24h, decay -1/6h) ni de las acciones por threshold.
 - **F7 Flutter, F8 Widget Android, F9 Meta**: fuera de este proyecto (tests Flutter viven en `apps/mobile`, ejecutados via `make test-flutter`).

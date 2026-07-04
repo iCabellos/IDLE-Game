@@ -11,22 +11,25 @@ namespace IdleRPG.Domain.GameData;
 public static class ClassBaseStats
 {
     private sealed record Growth(
-        float Attack, float Defense, float MagicPower, float MaxHp, float HpRegen);
+        float Attack, float Defense, float MagicPower, float MaxHp, float HpRegen,
+        float Speed);
 
     // Per-level growth tuned so each class has a distinct identity.
+    // Speed is a flat baseline (turn cadence identity), not level-scaled:
+    // fast classes act more often on the action-value timeline (10000/Speed).
     private static readonly IReadOnlyDictionary<CharacterClass, Growth> Table =
         new Dictionary<CharacterClass, Growth>
         {
-            [CharacterClass.Warrior]      = new(5.0f, 6.0f, 0.0f, 55f, 1.2f),
-            [CharacterClass.Mage]         = new(1.0f, 2.0f, 7.0f, 30f, 0.6f),
-            [CharacterClass.Rogue]        = new(6.0f, 3.0f, 0.0f, 35f, 0.8f),
-            [CharacterClass.Cleric]       = new(2.0f, 4.0f, 5.0f, 40f, 1.5f),
-            [CharacterClass.Ranger]       = new(5.5f, 3.0f, 1.0f, 35f, 0.8f),
-            [CharacterClass.Necromancer]  = new(1.5f, 2.5f, 6.5f, 32f, 0.7f),
-            [CharacterClass.Paladin]      = new(4.0f, 5.5f, 2.0f, 50f, 1.4f),
-            [CharacterClass.Berserker]    = new(7.0f, 2.0f, 0.0f, 45f, 0.9f),
-            [CharacterClass.Elementalist] = new(1.0f, 2.0f, 7.5f, 30f, 0.6f),
-            [CharacterClass.Trickster]    = new(5.0f, 3.0f, 3.0f, 34f, 0.8f),
+            [CharacterClass.Warrior]      = new(5.0f, 6.0f, 0.0f, 55f, 1.2f, 95f),
+            [CharacterClass.Mage]         = new(1.0f, 2.0f, 7.0f, 30f, 0.6f, 98f),
+            [CharacterClass.Rogue]        = new(6.0f, 3.0f, 0.0f, 35f, 0.8f, 112f),
+            [CharacterClass.Cleric]       = new(2.0f, 4.0f, 5.0f, 40f, 1.5f, 96f),
+            [CharacterClass.Ranger]       = new(5.5f, 3.0f, 1.0f, 35f, 0.8f, 106f),
+            [CharacterClass.Necromancer]  = new(1.5f, 2.5f, 6.5f, 32f, 0.7f, 94f),
+            [CharacterClass.Paladin]      = new(4.0f, 5.5f, 2.0f, 50f, 1.4f, 92f),
+            [CharacterClass.Berserker]    = new(7.0f, 2.0f, 0.0f, 45f, 0.9f, 100f),
+            [CharacterClass.Elementalist] = new(1.0f, 2.0f, 7.5f, 30f, 0.6f, 97f),
+            [CharacterClass.Trickster]    = new(5.0f, 3.0f, 3.0f, 34f, 0.8f, 110f),
         };
 
     /// <summary>Returns the level-scaled base stats for a class.</summary>
@@ -52,6 +55,7 @@ public static class ClassBaseStats
             IdleEfficiency = 1.0f,
             DropRate = 1.0f,
             Luck = 1.0f,
+            Speed = g.Speed,
         };
     }
 }

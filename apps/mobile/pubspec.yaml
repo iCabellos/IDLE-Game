@@ -56,3 +56,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # Bundled pixel font (SIL Open Font License, see assets/fonts/OFL.txt).
+  fonts:
+    - family: PressStart2P
+      fonts:
+        - asset: assets/fonts/PressStart2P-Regular.ttf

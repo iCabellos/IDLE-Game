@@ -17,12 +17,13 @@ Package Dart: `idle_rpg` (ver `pubspec.yaml`, `name: idle_rpg`). Bundle id iOS: 
 ## Estado actual: Implementado vs Planificado
 
 ### Implementado (preview F7)
-- **Tema dark** (`AppTheme.dark`, Material 3) y design tokens `AppColors` / `RarityColors`.
+- **UI pixel art integral**: TODO el arte es propio y dibujado en codigo (`lib/core/pixel/`): `PixelSprite` (sprites como filas de texto + paleta) renderizados por `PixelSpritePainter` (escalado entero, sin antialias), biblioteca `Sprites` (4 heroes del starter team, enemigos, items por slot, iconos de estado/nav, emblema) y widgets retro (`PixelPanel`, `PixelButton`, `PixelProgressBar`, `PixelBadge`, `PixelBackground`, `PixelText`). Fuente pixel **Press Start 2P** empaquetada en `assets/fonts/` (OFL). No hay imagenes/assets externos: para anadir arte nuevo, dibuja otro `PixelSprite` en `sprites.dart` (el test `pixel_sprite_test.dart` valida que la rejilla sea uniforme y la paleta completa).
+- **Tema dark** (`AppTheme.dark`, Material 3) y design tokens `AppColors` / `RarityColors` (sin cambios de valores).
 - **Routing** con `go_router`: `appRouter` en `lib/core/router/app_router.dart`. Rutas: `/login` (fuera del shell) y `ShellRoute` con `/dashboard`, `/inventory`, `/widget`.
 - **Shell** con `NavigationBar` de 3 tabs (`AppShell`).
 - **Pantallas**: `LoginScreen`, `DashboardScreen`, `InventoryScreen`, `WidgetPreviewScreen` (mockup del widget Android F8).
 - **Modelos cliente**: enum `CharacterStatus` (+ extension) y `InventoryItem` (+ `mockInventory`).
-- **Tests**: `test/app_theme_test.dart` (tokens y `RarityColors.forRarity`) y `test/widget_test.dart` (boot a login).
+- **Tests**: `test/app_theme_test.dart` (tokens y `RarityColors.forRarity`), `test/widget_test.dart` (boot al title screen; usa `pump` fijo porque hay animaciones en bucle) y `test/pixel_sprite_test.dart` (consistencia de todos los sprites).
 - Plataformas presentes: `web/` e `ios/`.
 
 ### Planificado (NO implementado todavia — no lo asumas presente)

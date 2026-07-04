@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../core/models/character_status.dart';
+import '../../core/pixel/pixel_sprite.dart';
+import '../../core/pixel/pixel_widgets.dart';
+import '../../core/pixel/sprites.dart';
 import '../../core/theme/app_theme.dart';
 
 /// Visual preview of the Android home-screen widget (F8), implemented
@@ -14,70 +17,57 @@ class WidgetPreviewScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Home Screen Widget')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Android Glance widget (apps/widget)',
-              style: TextStyle(color: AppColors.muted, fontSize: 13),
-            ),
-            const SizedBox(height: 16),
-            const _HomeScreenMock(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Padding(
-                    padding: EdgeInsets.only(left: 4, bottom: 8),
-                    child: Text('2x1', style: TextStyle(color: AppColors.muted, fontSize: 12)),
+      body: PixelBackground(
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    PixelArt(Sprites.crystal, size: 34),
+                    SizedBox(width: 10),
+                    PixelText('HOME CHARM', size: 18),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const PixelText(
+                  'ANDROID GLANCE WIDGET (APPS/WIDGET)',
+                  size: 9,
+                  color: AppColors.muted,
+                ),
+                const SizedBox(height: 16),
+                const PixelPanel(
+                  fill: Color(0xFF14243A),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      PixelText('2X1', size: 9, color: AppColors.muted),
+                      SizedBox(height: 8),
+                      _Widget2x1(status: CharacterStatus.winning),
+                      SizedBox(height: 20),
+                      PixelText('4X2', size: 9, color: AppColors.muted),
+                      SizedBox(height: 8),
+                      _Widget4x2(status: CharacterStatus.rewardsReady),
+                    ],
                   ),
-                  _Widget2x1(status: CharacterStatus.winning),
-                  SizedBox(height: 24),
-                  Padding(
-                    padding: EdgeInsets.only(left: 4, bottom: 8),
-                    child: Text('4x2', style: TextStyle(color: AppColors.muted, fontSize: 12)),
-                  ),
-                  _Widget4x2(status: CharacterStatus.rewardsReady),
-                ],
-              ),
-            ).animate().fadeIn(duration: 400.ms),
-            const SizedBox(height: 24),
-            const Text(
-              'Tapping the widget opens the app to the Dashboard. The icon, '
-              'status color and label update on each idle tick — never raw stats.',
-              style: TextStyle(color: AppColors.muted, fontSize: 13),
+                ).animate().fadeIn(duration: 400.ms),
+                const SizedBox(height: 20),
+                const PixelText(
+                  'TAPPING THE WIDGET OPENS THE APP TO THE GUILD HALL. THE '
+                  'SPRITE, STATUS COLOR AND LABEL UPDATE ON EACH IDLE TICK — '
+                  'NEVER RAW STATS.',
+                  size: 9,
+                  color: AppColors.muted,
+                  shadow: false,
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
-    );
-  }
-}
-
-/// Simple stand-in for an Android home screen wallpaper + grid.
-class _HomeScreenMock extends StatelessWidget {
-  const _HomeScreenMock({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [AppColors.navy, AppColors.bg],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.surface),
-      ),
-      child: child,
     );
   }
 }
@@ -92,40 +82,22 @@ class _Widget2x1 extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 220,
-      height: 88,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: status.color.withValues(alpha: 0.5)),
+        border: Border.all(color: status.color, width: 2),
+        boxShadow: const [BoxShadow(offset: Offset(3, 3), color: Color(0xFF0B1220))],
       ),
       child: Row(
         children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: status.color.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(status.icon, color: status.color, size: 24),
-          ),
-          const SizedBox(width: 12),
+          PixelArt(status.sprite, size: 40),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text(
-                  'Sir Cinder',
-                  style: TextStyle(color: AppColors.text, fontSize: 13, fontWeight: FontWeight.w600),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  status.label,
-                  style: TextStyle(color: status.color, fontSize: 12, fontWeight: FontWeight.w600),
-                ),
+                const PixelText('VANGUARD', size: 10, maxLines: 1),
+                PixelText(status.label.toUpperCase(), size: 9, color: status.color),
               ],
             ),
           ),
@@ -147,76 +119,39 @@ class _Widget4x2 extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: status.color.withValues(alpha: 0.5)),
+        border: Border.all(color: status.color, width: 2),
+        boxShadow: const [BoxShadow(offset: Offset(3, 3), color: Color(0xFF0B1220))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.bg,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: RarityColors.superior, width: 1.5),
-                ),
-                child: const Icon(Icons.shield, color: RarityColors.superior, size: 20),
-              ),
-              const SizedBox(width: 12),
+              const PixelArt(Sprites.warrior, size: 36),
+              const SizedBox(width: 10),
               const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Sir Cinder',
-                      style: TextStyle(color: AppColors.text, fontSize: 14, fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      'Whispering Crypts',
-                      style: TextStyle(color: AppColors.muted, fontSize: 11),
-                    ),
+                    PixelText('VANGUARD', size: 11),
+                    PixelText('EMBERFALL OUTSKIRTS',
+                        size: 8, color: AppColors.muted),
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: status.color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Icon(status.icon, color: status.color, size: 12),
-                    const SizedBox(width: 4),
-                    Text(status.label, style: TextStyle(color: status.color, fontSize: 11, fontWeight: FontWeight.w600)),
-                  ],
-                ),
-              ),
+              PixelBadge(label: status.label, color: status.color),
             ],
           ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            height: 36,
-            child: FilledButton.icon(
-              onPressed: ready ? () {} : null,
-              style: FilledButton.styleFrom(
-                backgroundColor: ready ? AppColors.success : AppColors.bg,
-                disabledBackgroundColor: AppColors.bg,
-                padding: EdgeInsets.zero,
-              ),
-              icon: Icon(Icons.card_giftcard, size: 16, color: ready ? AppColors.text : AppColors.muted),
-              label: Text(
-                ready ? 'Claim Rewards' : 'Still idle…',
-                style: TextStyle(fontSize: 12, color: ready ? AppColors.text : AppColors.muted),
-              ),
-            ),
+          const SizedBox(height: 12),
+          PixelButton(
+            label: ready ? 'Claim rewards' : 'Still idle…',
+            height: 34,
+            color: AppColors.success,
+            onPressed: ready ? () {} : null,
+            icon: const PixelArt(Sprites.chest, size: 18),
           ),
         ],
       ),
