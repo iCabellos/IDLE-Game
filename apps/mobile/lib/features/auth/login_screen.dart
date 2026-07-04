@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/pixel/pixel_anim.dart';
 import '../../core/pixel/pixel_sprite.dart';
 import '../../core/pixel/pixel_widgets.dart';
 import '../../core/pixel/sprites.dart';
@@ -36,10 +37,12 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Crest, floating like a title-screen logo.
+                  // Crest: a single entrance, then stillness — the moving
+                  // parts of the title screen are the heroes below.
                   const PixelArt(Sprites.emblem, size: 128)
-                      .animate(onPlay: (c) => c.repeat(reverse: true))
-                      .moveY(begin: -4, end: 4, duration: 1600.ms, curve: Curves.easeInOut),
+                      .animate()
+                      .fadeIn(duration: 400.ms)
+                      .scale(begin: const Offset(0.9, 0.9), end: const Offset(1, 1)),
                   const SizedBox(height: 20),
                   const PixelText('Idle RPG', size: 34, align: TextAlign.center)
                       .animate()
@@ -56,23 +59,20 @@ class _LoginScreenState extends State<LoginScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      for (final (i, sprite) in const [
-                        Sprites.warrior,
-                        Sprites.berserker,
-                        Sprites.cleric,
-                        Sprites.mage,
+                      for (final (i, frames) in const [
+                        Sprites.warriorFrames,
+                        Sprites.berserkerFrames,
+                        Sprites.clericFrames,
+                        Sprites.mageFrames,
                       ].indexed)
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 6),
-                          child: PixelArt(sprite, size: 52)
-                              .animate(onPlay: (c) => c.repeat(reverse: true))
-                              .moveY(
-                                begin: 0,
-                                end: -3,
-                                delay: (i * 180).ms,
-                                duration: 700.ms,
-                                curve: Curves.easeInOut,
-                              ),
+                          child: AnimatedPixelArt(
+                            frames,
+                            size: 52,
+                            stepMs: 650,
+                            startFrame: i % 2,
+                          ),
                         ),
                     ],
                   ).animate().fadeIn(delay: 300.ms, duration: 500.ms),
@@ -95,16 +95,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ).animate().fadeIn(delay: 350.ms, duration: 500.ms),
                   const SizedBox(height: 14),
-                  const PixelText(
-                    '> PRESS TO START YOUR ADVENTURE <',
-                    size: 10,
-                    color: AppColors.accent,
-                    align: TextAlign.center,
-                  )
-                      .animate(onPlay: (c) => c.repeat(reverse: true))
-                      .fadeIn(duration: 600.ms)
-                      .then()
-                      .fadeOut(delay: 400.ms, duration: 600.ms),
+                  // Hard on/off blink, cartridge style — no alpha pulsing.
+                  const PixelBlink(
+                    child: PixelText(
+                      '> PRESS TO START YOUR ADVENTURE <',
+                      size: 10,
+                      color: AppColors.accent,
+                      align: TextAlign.center,
+                    ),
+                  ),
                   const SizedBox(height: 20),
                   const PixelText(
                     'WE ONLY REQUEST READ ACCESS TO YOUR PUBLIC INVENTORY.',

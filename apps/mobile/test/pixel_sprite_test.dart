@@ -5,12 +5,21 @@ import 'package:idle_rpg/core/pixel/sprites.dart';
 /// Every sprite in the library, so shape/palette rules run over all art.
 const allSprites = <String, PixelSprite>{
   'warrior': Sprites.warrior,
+  'warriorB': Sprites.warriorB,
   'berserker': Sprites.berserker,
+  'berserkerB': Sprites.berserkerB,
   'cleric': Sprites.cleric,
+  'clericB': Sprites.clericB,
   'mage': Sprites.mage,
+  'mageB': Sprites.mageB,
   'slime': Sprites.slime,
+  'slimeB': Sprites.slimeB,
   'skeleton': Sprites.skeleton,
   'boss': Sprites.boss,
+  'bossB': Sprites.bossB,
+  'slash1': Sprites.slash1,
+  'slash2': Sprites.slash2,
+  'slash3': Sprites.slash3,
   'helmet': Sprites.helmet,
   'chestplate': Sprites.chestplate,
   'greaves': Sprites.greaves,
@@ -63,6 +72,23 @@ void main() {
               reason: '${entry.key} uses unmapped palette char "$ch"',
             );
           }
+        }
+      }
+    });
+  });
+
+  group('animation frames', () {
+    test('every frame set shares one grid size', () {
+      const sets = [
+        Sprites.warriorFrames, Sprites.berserkerFrames, Sprites.clericFrames,
+        Sprites.mageFrames, Sprites.slimeFrames, Sprites.bossFrames,
+        Sprites.slashFrames,
+      ];
+      for (final frames in sets) {
+        expect(frames.length, greaterThanOrEqualTo(2));
+        for (final frame in frames) {
+          expect(frame.width, frames.first.width);
+          expect(frame.height, frames.first.height);
         }
       }
     });
