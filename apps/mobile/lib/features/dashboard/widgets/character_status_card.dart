@@ -25,14 +25,9 @@ class CharacterStatusCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          PixelArt(status.sprite, size: 56)
-              .animate(onPlay: (c) => c.repeat(reverse: true))
-              .scale(
-                begin: const Offset(1, 1),
-                end: const Offset(1.08, 1.08),
-                duration: 1400.ms,
-                curve: Curves.easeInOut,
-              ),
+          // Static icon: the state itself is the signal. A single entrance
+          // pop happens at panel level; no perpetual pulsing.
+          PixelArt(status.sprite, size: 56),
           const SizedBox(width: 14),
           Expanded(
             child: Column(

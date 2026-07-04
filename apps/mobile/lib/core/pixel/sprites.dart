@@ -142,6 +142,87 @@ class Sprites {
   ]);
 
   // -----------------------------------------------------------------
+  // Hero idle frames (B poses): a one-pixel crouch, hand-authored so the
+  // party breathes in discrete retro steps instead of smooth tweens.
+  // -----------------------------------------------------------------
+
+  static const warriorB = PixelSprite(palette: _basePalette, rows: [
+    '................',
+    '......KKKK......',
+    '.....KRRRRK.....',
+    '....KSSSSSSK....',
+    '....KSFFFFSK....',
+    '....KSFKFKSK....',
+    '....KKSSSSKK....',
+    '..KKKSSSSSSKKK..',
+    '.KGGKSSSSSSKWSK.',
+    '.KGgKSsSSsSKWSK.',
+    '.KGgKSSSSSSKWSK.',
+    '.KKKKSSSSSSKKKK.',
+    '....KsSKKSsK....',
+    '....KsSK.KsK....',
+    '...KKSSK.KSSK...',
+    '...KKKK..KKKK...',
+  ]);
+
+  static const berserkerB = PixelSprite(palette: _basePalette, rows: [
+    '................',
+    '..KK........KK..',
+    '.KGGK......KGGK.',
+    '..KGKKKKKKKKGK..',
+    '...KRRRRRRRRK...',
+    '...KRFFFFFFRK...',
+    '...KRFKFFKFRK...',
+    '...KKRRRRRRKK...',
+    '..KFKRRRRRRKFK..',
+    '..KFKRrRRrRKFK..',
+    '..KKKRRRRRRKKK..',
+    '....KRRRRRRK....',
+    '....KrRKKRrK....',
+    '....KrRK.KrK....',
+    '...KKRRK.KRRK...',
+    '...KKKK..KKKK...',
+  ]);
+
+  static const clericB = PixelSprite(palette: _basePalette, rows: [
+    '................',
+    '.......KKKK...KG',
+    '......KWWWWK..KN',
+    '......KWFFWK..KN',
+    '.....KWFKFKW..KN',
+    '.....KKWWWWKK.KN',
+    '....KWWWWWWWWKKN',
+    '....KWWGGGGWWKKN',
+    '....KWWWGGWWWKKN',
+    '....KWWWGGWWWKKN',
+    '....KWWWWWWWWKKN',
+    '....KWWWWWWWWK..',
+    '....KWWWWWWWWK..',
+    '....KWgWWWWgWK..',
+    '...KKWWWKKWWWKK.',
+    '...KKKKK..KKKKK.',
+  ]);
+
+  static const mageB = PixelSprite(palette: _basePalette, rows: [
+    '................',
+    '.......KK.......',
+    '......KBBK......',
+    '.....KBBBBK.....',
+    '....KBBBBBBK....',
+    '..KKBBBBBBBBKK..',
+    '.KBBBBBBBBBBBBK.',
+    '..KKKFFFFFFKKK..',
+    '....KFKFFKFK....',
+    '....KKBBBBKK....',
+    '..KLKBBBBBBKLK..',
+    '..KLKBBLLBBKLK..',
+    '..KKKBBLLBBKKK..',
+    '....KBBBBBBK....',
+    '...KKBBBBBBKK...',
+    '...KKKKKKKKKK...',
+  ]);
+
+  // -----------------------------------------------------------------
   // Enemies
   // -----------------------------------------------------------------
 
@@ -204,6 +285,117 @@ class Sprites {
     '...KKRRK.KRRK...',
     '...KKKK..KKKK...',
   ]);
+
+  /// Slime squash frame: flatter and wider, mid-bounce.
+  static const slimeB = PixelSprite(palette: _basePalette, rows: [
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '......KKKK......',
+    '....KKVVVVKK....',
+    '...KVVVVVVVVK...',
+    '..KVWVVVVVVWVK..',
+    '..KVKVVVVVVKVK..',
+    '.KVVVVVVVVVVVVK.',
+    'KVVvVKKKKKKVvVVK',
+    'KVVVVVVVVVVVVVVK',
+    'KvVVVVVVVVVVVVvK',
+    '.KvvVVVVVVVVvvK.',
+    '..KKKKKKKKKKKK..',
+  ]);
+
+  /// Boss menace frame: eyes flare white.
+  static const bossB = PixelSprite(palette: _basePalette, rows: [
+    '.KK..........KK.',
+    'KrrK........KrrK',
+    'KrrrKKKKKKKKrrrK',
+    '.KrrrRRRRRRrrrK.',
+    '..KRRRRRRRRRRK..',
+    '..KRWKRRRRKWRK..',
+    '..KRRRRRRRRRRK..',
+    '...KRRKKKKRRK...',
+    '..KKRRRRRRRRKK..',
+    '.KrKRRRRRRRRKrK.',
+    '.KrKRrRRRRrRKrK.',
+    '.KKKRRRRRRRRKKK.',
+    '....KRRRRRRK....',
+    '....KrRKKRrK....',
+    '...KKRRK.KRRK...',
+    '...KKKK..KKKK...',
+  ]);
+
+  // -----------------------------------------------------------------
+  // Attack slash: a three-frame diagonal arc in steel and white. Drawn
+  // over the enemy for ~200ms during the battle-diorama strike.
+  // -----------------------------------------------------------------
+
+  static const slash1 = PixelSprite(palette: _basePalette, rows: [
+    '............WW..',
+    '...........WWS..',
+    '..........WWS...',
+    '.........WWS....',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+  ]);
+
+  static const slash2 = PixelSprite(palette: _basePalette, rows: [
+    '............WW..',
+    '...........WWS..',
+    '..........WWS...',
+    '.........WWS....',
+    '........WWS.....',
+    '.......WWS......',
+    '......WWS.......',
+    '.....WWS........',
+    '....WWS.........',
+    '...WWS..........',
+    '..WWS...........',
+    '..WW............',
+    '................',
+    '................',
+    '................',
+    '................',
+  ]);
+
+  static const slash3 = PixelSprite(palette: _basePalette, rows: [
+    '................',
+    '................',
+    '..........S.....',
+    '................',
+    '.......W........',
+    '................',
+    '................',
+    '....S...........',
+    '................',
+    '..W.............',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+  ]);
+
+  /// Idle frame pairs, ready to feed AnimatedPixelArt.
+  static const warriorFrames = [warrior, warriorB];
+  static const berserkerFrames = [berserker, berserkerB];
+  static const clericFrames = [cleric, clericB];
+  static const mageFrames = [mage, mageB];
+  static const slimeFrames = [slime, slimeB];
+  static const bossFrames = [boss, bossB];
+  static const slashFrames = [slash1, slash2, slash3];
 
   // -----------------------------------------------------------------
   // Items by equipment slot

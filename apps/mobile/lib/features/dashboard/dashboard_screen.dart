@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../core/models/character_status.dart';
+import '../../core/pixel/pixel_anim.dart';
 import '../../core/pixel/pixel_sprite.dart';
 import '../../core/pixel/pixel_widgets.dart';
 import '../../core/pixel/sprites.dart';
@@ -96,10 +97,10 @@ class _PartyRow extends StatelessWidget {
   const _PartyRow();
 
   static const _party = [
-    (sprite: Sprites.warrior, name: 'VANGUARD', role: 'TANK'),
-    (sprite: Sprites.berserker, name: 'EMBER', role: 'DPS'),
-    (sprite: Sprites.cleric, name: 'LUMEN', role: 'HEALER'),
-    (sprite: Sprites.mage, name: 'FROST', role: 'DPS'),
+    (frames: Sprites.warriorFrames, name: 'VANGUARD', role: 'TANK'),
+    (frames: Sprites.berserkerFrames, name: 'EMBER', role: 'DPS'),
+    (frames: Sprites.clericFrames, name: 'LUMEN', role: 'HEALER'),
+    (frames: Sprites.mageFrames, name: 'FROST', role: 'DPS'),
   ];
 
   @override
@@ -116,15 +117,14 @@ class _PartyRow extends StatelessWidget {
                 Expanded(
                   child: Column(
                     children: [
-                      PixelArt(member.sprite, size: 56)
-                          .animate(onPlay: (c) => c.repeat(reverse: true))
-                          .moveY(
-                            begin: 0,
-                            end: -3,
-                            delay: (i * 200).ms,
-                            duration: 800.ms,
-                            curve: Curves.easeInOut,
-                          ),
+                      // Two hand-drawn poses stepped slowly, staggered so
+                      // the line breathes without moving in lockstep.
+                      AnimatedPixelArt(
+                        member.frames,
+                        size: 56,
+                        stepMs: 600,
+                        startFrame: i % 2,
+                      ),
                       const SizedBox(height: 6),
                       PixelText(member.name, size: 9, maxLines: 1),
                       PixelText(member.role, size: 8, color: AppColors.muted),
@@ -150,7 +150,6 @@ class _BattleDiorama extends StatelessWidget {
   Widget build(BuildContext context) {
     final stuck = status == CharacterStatus.stuck;
     final danger = status == CharacterStatus.danger;
-    final enemy = danger || stuck ? Sprites.boss : Sprites.slime;
 
     return PixelPanel(
       fill: const Color(0xFF14243A),
@@ -169,36 +168,111 @@ class _BattleDiorama extends StatelessWidget {
           const SizedBox(height: 6),
           const PixelProgressBar(filled: 7, total: 10, color: AppColors.accent),
           const SizedBox(height: 14),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              const PixelArt(Sprites.warrior, size: 64)
-                  .animate(onPlay: (c) => c.repeat())
-                  .moveX(begin: 0, end: 10, duration: 500.ms, curve: Curves.easeIn)
-                  .then()
-                  .moveX(begin: 10, end: 0, duration: 300.ms)
-                  .then(delay: 600.ms),
-              const PixelText('VS', size: 14, color: AppColors.danger),
-              PixelArt(enemy, size: 64, flipX: true)
-                  .animate(onPlay: (c) => c.repeat())
-                  .shake(hz: 3, offset: const Offset(2, 0), duration: 400.ms)
-                  .then(delay: 1000.ms),
-            ],
-          ),
+          _BattleLoop(bossFight: danger || stuck),
         ],
       ),
     );
   }
 }
 
-class _AdventureLog extends StatelessWidget {
+/// Hand-choreographed strike loop on a 2s cycle of discrete steps:
+/// idle breathing -> the vanguard steps in -> a three-frame slash lands ->
+/// the enemy is knocked back a few pixels -> everyone resets. No easing,
+/// no continuous motion; every pose is a drawn frame.
+class _BattleLoop extends StatefulWidget {
+  const _BattleLoop({required this.bossFight});
+
+  final bool bossFight;
+
+  @override
+  State<_BattleLoop> createState() => _BattleLoopState();
+}
+
+class _BattleLoopState extends State<_BattleLoop>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _cycle = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2000),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _cycle.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final enemyFrames = widget.bossFight ? Sprites.bossFrames : Sprites.slimeFrames;
+
+    return AnimatedBuilder(
+      animation: _cycle,
+      builder: (context, _) {
+        final t = _cycle.value;
+
+        // Discrete choreography windows (fractions of the 2s cycle).
+        final lunging = t >= 0.50 && t < 0.66;
+        final striking = t >= 0.55 && t < 0.70;
+        final recoiling = t >= 0.58 && t < 0.74;
+
+        final slashFrame = striking
+            ? (((t - 0.55) / 0.15) * 3).floor().clamp(0, 2)
+            : -1;
+        final idleFrame = (t * 4).floor() % 2;
+
+        return SizedBox(
+          height: 72,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              Transform.translate(
+                offset: Offset(lunging ? 8 : 0, 0),
+                child: PixelArt(
+                  lunging ? Sprites.warrior : Sprites.warriorFrames[idleFrame],
+                  size: 64,
+                ),
+              ),
+              const PixelText('VS', size: 14, color: AppColors.danger),
+              Transform.translate(
+                offset: Offset(recoiling ? 5 : 0, 0),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    PixelArt(
+                      recoiling
+                          ? enemyFrames[1]
+                          : enemyFrames[idleFrame % enemyFrames.length],
+                      size: 64,
+                      flipX: true,
+                    ),
+                    if (slashFrame >= 0)
+                      PixelArt(Sprites.slashFrames[slashFrame], size: 64),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _AdventureLog extends StatefulWidget {
   const _AdventureLog({required this.status});
 
   final CharacterStatus status;
 
   @override
+  State<_AdventureLog> createState() => _AdventureLogState();
+}
+
+class _AdventureLogState extends State<_AdventureLog> {
+  int _sparkTrigger = 0;
+
+  @override
   Widget build(BuildContext context) {
-    final ready = status == CharacterStatus.rewardsReady;
+    final ready = widget.status == CharacterStatus.rewardsReady;
 
     return PixelPanel(
       child: Column(
@@ -210,11 +284,22 @@ class _AdventureLog extends StatelessWidget {
           const _LogRow(sprite: Sprites.skull, label: 'ENEMIES DEFEATED', value: 'DOZENS'),
           const _LogRow(sprite: Sprites.loot, label: 'LOOT FOUND', value: '3 ITEMS'),
           const SizedBox(height: 12),
-          PixelButton(
-            label: ready ? 'Claim rewards' : 'No rewards yet',
-            color: AppColors.success,
-            onPressed: ready ? () {} : null,
-            icon: const PixelArt(Sprites.chest, size: 22),
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              PixelButton(
+                label: ready ? 'Claim rewards' : 'No rewards yet',
+                color: AppColors.success,
+                onPressed: ready
+                    ? () => setState(() => _sparkTrigger++)
+                    : null,
+                icon: const PixelArt(Sprites.chest, size: 22),
+              ),
+              // One-shot gold sparks on claim; dormant otherwise.
+              IgnorePointer(
+                child: SparkBurst(trigger: _sparkTrigger, size: 56),
+              ),
+            ],
           ),
         ],
       ),
