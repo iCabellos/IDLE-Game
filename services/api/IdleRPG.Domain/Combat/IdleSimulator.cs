@@ -1,5 +1,5 @@
-using IdleRPG.Domain.Enums;
 using IdleRPG.Domain.GameData;
+using IdleRPG.Domain.Loot;
 
 namespace IdleRPG.Domain.Combat;
 
@@ -23,6 +23,9 @@ public static class IdleSimulator
 
     /// <summary>Hard guard so one advance can never spin unbounded.</summary>
     public const int MaxBattlesPerAdvance = 5000;
+
+    /// <summary>Pending drops kept in full detail; the rest is summarised.</summary>
+    public const int MaxPendingLoot = 100;
 
     public static IdleAdvanceReport Advance(
         IdleState state, IReadOnlyList<HeroSpec> team, int ticks, int userSeed)
@@ -79,10 +82,18 @@ public static class IdleSimulator
                     xpGained += enemy.XpReward;
                     state.TotalKills++;
 
-                    if (RollDrop(lootRng, enemy, team, out var rarity))
+                    var drop = LootGenerator.TryGenerate(lootRng, enemy, team);
+                    if (drop is not null)
                     {
-                        var key = rarity.ToString();
-                        state.PendingDrops[key] = state.PendingDrops.GetValueOrDefault(key) + 1;
+                        if (state.PendingLoot.Count < MaxPendingLoot)
+                        {
+                            state.PendingLoot.Add(drop);
+                        }
+                        else
+                        {
+                            state.OverflowLoot++;
+                        }
+
                         drops++;
                     }
                 }
@@ -112,48 +123,6 @@ public static class IdleSimulator
             DropsRolled = drops,
             ZonesCleared = zonesCleared,
         };
-    }
-
-    /// <summary>
-    /// Rolls whether an enemy drops an item and at which rarity. Team
-    /// DropRate scales the drop chance; Luck weights the roll toward the
-    /// rarer tradeable tiers. Only rolled-stat tiers (≤ Transcendent) drop.
-    /// </summary>
-    private static bool RollDrop(
-        Random rng, EnemySpec enemy, IReadOnlyList<HeroSpec> team, out ItemRarity rarity)
-    {
-        rarity = ItemRarity.Broken;
-
-        var dropRate = team.Average(h => MathF.Max(h.Stats.DropRate, 0f));
-        if (rng.NextDouble() >= enemy.DropChance * dropRate)
-        {
-            return false;
-        }
-
-        var luck = Math.Max(team.Average(h => (double)h.Stats.Luck), 0.1);
-
-        var tiers = Enum.GetValues<ItemRarity>()
-            .Where(r => !ItemRarityData.HasFixedStats(r) && ItemRarityData.DropPercent(r) > 0)
-            .ToArray();
-
-        // Luck raises the weight of everything above the commons.
-        double Weight(ItemRarity r) =>
-            ItemRarityData.DropPercent(r) * (r >= ItemRarity.Rare ? luck : 1.0);
-
-        var total = tiers.Sum(Weight);
-        var roll = rng.NextDouble() * total;
-        foreach (var tier in tiers)
-        {
-            roll -= Weight(tier);
-            if (roll <= 0)
-            {
-                rarity = tier;
-                return true;
-            }
-        }
-
-        rarity = tiers[^1];
-        return true;
     }
 
     private static int MixSeed(int seed, long counter)

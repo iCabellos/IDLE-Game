@@ -1,6 +1,7 @@
 using IdleRPG.Application.DTOs.Combat;
 using IdleRPG.Domain.Combat;
 using IdleRPG.Domain.GameData;
+using IdleRPG.Domain.Loot;
 
 namespace IdleRPG.Application.UseCases.Combat;
 
@@ -34,7 +35,7 @@ internal static class CombatText
     };
 
     public static bool HasRewards(IdleState state) =>
-        state.PendingXp > 0 || state.PendingDrops.Values.Sum() > 0;
+        state.PendingXp > 0 || state.PendingLoot.Count > 0 || state.OverflowLoot > 0;
 
     public static IReadOnlyList<string> RewardSummary(IdleState state)
     {
@@ -45,12 +46,20 @@ internal static class CombatText
             lines.Add("Experience ready to claim.");
         }
 
-        var drops = state.PendingDrops.Values.Sum();
+        var drops = state.PendingLoot.Count + state.OverflowLoot;
         if (drops > 0)
         {
             lines.Add(drops == 1
                 ? "1 item found — awaiting Steam sync."
                 : $"{drops} items found — awaiting Steam sync.");
+
+            // Showcase the best finds, ARPG drop-feed style.
+            foreach (var drop in state.PendingLoot
+                         .OrderByDescending(d => d.Rarity)
+                         .Take(3))
+            {
+                lines.Add($"{drop.Name} — {drop.Rarity} {ArchetypeCatalog.For(drop.Archetype).DisplayName}");
+            }
         }
 
         if (lines.Count == 0)
@@ -60,6 +69,16 @@ internal static class CombatText
 
         return lines;
     }
+
+    /// <summary>Maps a drop for the client: names and descriptions, no numbers.</summary>
+    public static LootDropDto ToDto(LootDrop drop) => new()
+    {
+        Name = drop.Name,
+        Rarity = drop.Rarity.ToString(),
+        Archetype = ArchetypeCatalog.For(drop.Archetype).DisplayName,
+        Slot = drop.Slot,
+        Affixes = drop.AffixDescriptions,
+    };
 
     public static EnemyPreviewDto EnemyPreview(IdleState state)
     {

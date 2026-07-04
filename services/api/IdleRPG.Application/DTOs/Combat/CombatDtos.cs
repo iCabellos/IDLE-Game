@@ -22,6 +22,22 @@ public record CombatStateDto
 
     public IReadOnlyList<TeamMemberDto> Team { get; init; } = Array.Empty<TeamMemberDto>();
     public EnemyPreviewDto EnemyPreview { get; init; } = new();
+
+    /// <summary>Latest ARPG drops, newest first (drop-feed for the client).</summary>
+    public IReadOnlyList<LootDropDto> RecentLoot { get; init; } = Array.Empty<LootDropDto>();
+}
+
+/// <summary>
+/// A generated drop as shown to the player: Diablo-style name, rarity and
+/// archetype labels plus descriptive affix text — never rolled numbers.
+/// </summary>
+public record LootDropDto
+{
+    public string Name { get; init; } = string.Empty;
+    public string Rarity { get; init; } = string.Empty;
+    public string Archetype { get; init; } = string.Empty;
+    public string Slot { get; init; } = string.Empty;
+    public IReadOnlyList<string> Affixes { get; init; } = Array.Empty<string>();
 }
 
 public record TeamMemberDto

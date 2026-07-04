@@ -59,6 +59,12 @@ public sealed class GetCombatStateHandler : IRequestHandler<GetCombatStateQuery,
             RewardSummary = CombatText.RewardSummary(state),
             Team = team.Select(ToDto).ToList(),
             EnemyPreview = CombatText.EnemyPreview(state),
+            RecentLoot = state.PendingLoot
+                .AsEnumerable()
+                .Reverse()
+                .Take(8)
+                .Select(CombatText.ToDto)
+                .ToList(),
         };
     }
 
