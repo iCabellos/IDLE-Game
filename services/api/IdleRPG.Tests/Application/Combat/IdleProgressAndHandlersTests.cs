@@ -136,7 +136,8 @@ public class IdleProgressAndHandlersTests
     {
         await StateHandler().Handle(new GetCombatStateQuery(), CancellationToken.None);
         _store.States[_userId].PendingXp = 0;
-        _store.States[_userId].PendingDrops.Clear();
+        _store.States[_userId].PendingLoot.Clear();
+        _store.States[_userId].OverflowLoot = 0;
 
         var handler = new ClaimRewardsHandler(
             _currentUser, _characters, _progress, _store, _cache, _uow);

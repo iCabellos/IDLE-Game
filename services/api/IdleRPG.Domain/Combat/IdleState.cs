@@ -1,4 +1,4 @@
-using IdleRPG.Domain.Enums;
+using IdleRPG.Domain.Loot;
 
 namespace IdleRPG.Domain.Combat;
 
@@ -30,8 +30,15 @@ public sealed class IdleState
 
     public long PendingXp { get; set; }
 
-    /// <summary>Pending item drops by rarity name, granted on claim (F5 syncs to Steam).</summary>
-    public Dictionary<string, int> PendingDrops { get; set; } = new();
+    /// <summary>
+    /// Generated ARPG drops (named, archetyped, affixed) awaiting the Steam
+    /// sync (F5). Capped at <see cref="IdleSimulator.MaxPendingLoot"/>;
+    /// overflow is tallied in <see cref="OverflowLoot"/>.
+    /// </summary>
+    public List<LootDrop> PendingLoot { get; set; } = new();
+
+    /// <summary>Drops beyond the pending-loot cap (summarised, not lost silently).</summary>
+    public int OverflowLoot { get; set; }
 
     public int ConsecutiveLosses { get; set; }
 

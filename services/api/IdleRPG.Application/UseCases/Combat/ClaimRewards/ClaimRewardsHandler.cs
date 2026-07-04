@@ -85,9 +85,18 @@ public sealed class ClaimRewardsHandler : IRequestHandler<ClaimRewardsCommand, C
             await _uow.SaveChangesAsync(ct);
         }
 
-        var drops = state.PendingDrops.Values.Sum();
+        var drops = state.PendingLoot.Count + state.OverflowLoot;
         if (drops > 0)
         {
+            // Showcase the best finds by rarity, Diablo drop-feed style.
+            foreach (var drop in state.PendingLoot
+                         .OrderByDescending(d => d.Rarity)
+                         .Take(5))
+            {
+                highlights.Add(
+                    $"Loot: {drop.Name} ({drop.Rarity} {ArchetypeCatalog.For(drop.Archetype).DisplayName} {drop.Slot})");
+            }
+
             highlights.Add(drops == 1
                 ? "1 item is awaiting Steam sync (available once the market link goes live)."
                 : $"{drops} items are awaiting Steam sync (available once the market link goes live).");
