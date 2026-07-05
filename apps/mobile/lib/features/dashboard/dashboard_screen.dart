@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../core/models/character_status.dart';
+import '../../core/models/loot_drop_view.dart';
 import '../../core/pixel/pixel_anim.dart';
 import '../../core/pixel/pixel_sprite.dart';
 import '../../core/pixel/pixel_widgets.dart';
@@ -53,6 +54,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 _AdventureLog(status: _status)
                     .animate()
                     .fadeIn(delay: 200.ms, duration: 400.ms),
+                const SizedBox(height: 16),
+                const _LootFeed()
+                    .animate()
+                    .fadeIn(delay: 250.ms, duration: 400.ms),
                 const SizedBox(height: 16),
                 const _SetBonusPanel()
                     .animate()
@@ -167,7 +172,22 @@ class _BattleDiorama extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           const PixelProgressBar(filled: 7, total: 10, color: AppColors.accent),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
+          // Enemy weaknesses guide gear choice (mirrors EnemyPreview).
+          Row(
+            children: [
+              const PixelText('WEAK TO', size: 8, color: AppColors.muted),
+              const SizedBox(width: 8),
+              for (final element in danger || stuck
+                  ? const ['Ice', 'Poison', 'Physical']
+                  : const ['Fire', 'Lightning'])
+                Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: PixelArt(SpriteLibrary.forElement(element), size: 18),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
           _BattleLoop(bossFight: danger || stuck),
         ],
       ),
@@ -326,6 +346,54 @@ class _LogRow extends StatelessWidget {
             child: PixelText(label, size: 10, color: AppColors.muted),
           ),
           PixelText(value, size: 10),
+        ],
+      ),
+    );
+  }
+}
+
+/// ARPG drop feed: the latest generated items, named and color-coded by
+/// rarity with their archetype identity (mirrors RecentLoot from the API).
+class _LootFeed extends StatelessWidget {
+  const _LootFeed();
+
+  @override
+  Widget build(BuildContext context) {
+    return PixelPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const PixelText('LATEST LOOT', size: 11, color: AppColors.muted),
+          const SizedBox(height: 10),
+          for (final drop in mockLootFeed)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(
+                children: [
+                  PixelArt(SpriteLibrary.forSlot(drop.slot), size: 22),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        PixelText(
+                          drop.name.toUpperCase(),
+                          size: 9,
+                          color: RarityColors.forRarity(drop.rarityTier),
+                          maxLines: 1,
+                        ),
+                        PixelText(
+                          '${drop.rarity.toUpperCase()} · ${drop.archetype.toUpperCase()}',
+                          size: 7,
+                          color: AppColors.muted,
+                          shadow: false,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
