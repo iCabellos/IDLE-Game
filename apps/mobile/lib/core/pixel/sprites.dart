@@ -398,6 +398,144 @@ class Sprites {
   static const slashFrames = [slash1, slash2, slash3];
 
   // -----------------------------------------------------------------
+  // Element icons (weakness indicators) + map glyphs
+  // -----------------------------------------------------------------
+
+  static const fireIcon = PixelSprite(palette: _basePalette, rows: [
+    '................',
+    '.......KK.......',
+    '......KRRK......',
+    '......KRRK......',
+    '.....KRRRRK.....',
+    '....KRRARRRK....',
+    '....KRAARRRK....',
+    '...KRRAAARRRK...',
+    '...KRAAGAARRK...',
+    '...KRAGGGAARK...',
+    '...KRAGGGGARK...',
+    '....KAGGGGAK....',
+    '....KKAGGAKK....',
+    '......KKKK......',
+    '................',
+    '................',
+  ]);
+
+  static const iceIcon = PixelSprite(palette: _basePalette, rows: [
+    '................',
+    '.......KK.......',
+    '......KLLK......',
+    '...KK.KLLK.KK...',
+    '...KLKKLLKKLK...',
+    '....KLLLLLLK....',
+    '.....KLWWLK.....',
+    '......KWWK......',
+    '.....KLWWLK.....',
+    '....KLLLLLLK....',
+    '...KLKKLLKKLK...',
+    '...KK.KLLK.KK...',
+    '......KLLK......',
+    '.......KK.......',
+    '................',
+    '................',
+  ]);
+
+  static const boltIcon = PixelSprite(palette: _basePalette, rows: [
+    '................',
+    '........KKKK....',
+    '.......KGGGK....',
+    '......KGGGK.....',
+    '.....KGGGK......',
+    '....KGGGKK......',
+    '...KGGGGGGK.....',
+    '....KKKGGGK.....',
+    '......KGGK......',
+    '.....KGGK.......',
+    '....KGGK........',
+    '....KGK.........',
+    '....KK..........',
+    '................',
+    '................',
+    '................',
+  ]);
+
+  static const poisonIcon = PixelSprite(palette: _basePalette, rows: [
+    '................',
+    '.......KK.......',
+    '......KVVK......',
+    '......KVVK......',
+    '.....KVVVVK.....',
+    '....KVVVVVVK....',
+    '...KVVVVVVVVK...',
+    '...KVvVVVVWVK...',
+    '...KVvVVVVVVK...',
+    '...KVVVVVVVVK...',
+    '....KVvVVVVK....',
+    '.....KVVVVK.....',
+    '......KKKK......',
+    '................',
+    '................',
+    '................',
+  ]);
+
+  static const physicalIcon = PixelSprite(palette: _basePalette, rows: [
+    '................',
+    '..........KKK...',
+    '.........KWSK...',
+    '........KWSSK...',
+    '.......KWSSK....',
+    '......KWSSK.....',
+    '.....KWSSK......',
+    '....KWSSK.......',
+    '...KKSSK........',
+    '..KGKSK.........',
+    '..KGGK..........',
+    '.KNKGGK.........',
+    '.KNK.KK.........',
+    '..KK............',
+    '................',
+    '................',
+  ]);
+
+  /// Map tab / locked-zone glyphs.
+  static const padlock = PixelSprite(palette: _basePalette, rows: [
+    '................',
+    '.....KKKKKK.....',
+    '....KsSSSSsK....',
+    '....KsK..KsK....',
+    '....KsK..KsK....',
+    '...KKKKKKKKKK...',
+    '...KGGGGGGGGK...',
+    '...KGgGGGGgGK...',
+    '...KGGGKKGGGK...',
+    '...KGGGKKGGGK...',
+    '...KGGGGGGGGK...',
+    '...KGgGGGGgGK...',
+    '...KGGGGGGGGK...',
+    '...KKKKKKKKKK...',
+    '................',
+    '................',
+  ]);
+
+  static const compass = PixelSprite(palette: _basePalette, rows: [
+    '................',
+    '.....KKKKKK.....',
+    '...KKSSSSSSKK...',
+    '..KSSSSKKSSSSK..',
+    '..KSSSKGGKSSSK..',
+    '.KSSSSKGGKSSSSK.',
+    '.KSSSKGGGGKSSSK.',
+    '.KSKKGGGGGGKKSK.',
+    '.KSKKGGGGGGKKSK.',
+    '.KSSSKGGGGKSSSK.',
+    '.KSSSSKGGKSSSSK.',
+    '..KSSSKGGKSSSK..',
+    '..KSSSSKKSSSSK..',
+    '...KKSSSSSSKK...',
+    '.....KKKKKK.....',
+    '................',
+  ]);
+
+  // -----------------------------------------------------------------
   // Items by equipment slot
   // -----------------------------------------------------------------
 
@@ -836,5 +974,14 @@ class SpriteLibrary {
         'Amulet' => Sprites.amulet,
         'Relic1' || 'Relic2' => Sprites.relic,
         _ => Sprites.loot,
+      };
+
+  /// Weakness / damage-type icon by element name (DamageType enum names).
+  static PixelSprite forElement(String element) => switch (element) {
+        'Fire' => Sprites.fireIcon,
+        'Ice' => Sprites.iceIcon,
+        'Lightning' => Sprites.boltIcon,
+        'Poison' => Sprites.poisonIcon,
+        _ => Sprites.physicalIcon,
       };
 }

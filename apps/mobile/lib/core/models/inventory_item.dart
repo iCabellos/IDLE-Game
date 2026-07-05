@@ -9,6 +9,7 @@ class InventoryItem {
     required this.rarityTier,
     this.equipped = false,
     this.setName,
+    this.traits = const [],
   });
 
   final String id;
@@ -18,6 +19,10 @@ class InventoryItem {
   final int rarityTier;
   final bool equipped;
   final String? setName;
+
+  /// Descriptive affix lines ("More defense") — text only, never numbers,
+  /// per the UX rule. Mirrors LootDropDto.Affixes.
+  final List<String> traits;
 }
 
 /// A handful of items mirroring `ItemSeed.BuildItems()` — early-game gear
@@ -31,6 +36,7 @@ const mockInventory = <InventoryItem>[
     rarityTier: 6,
     equipped: true,
     setName: 'Ironclad Set',
+    traits: ['More defense', 'Shrugs off physical blows'],
   ),
   InventoryItem(
     id: 'ironclad-cuirass',
@@ -60,11 +66,12 @@ const mockInventory = <InventoryItem>[
   ),
   InventoryItem(
     id: 'rare-sword-1',
-    name: 'Rare Sword 1',
+    name: 'Savage Blade of Slaughter',
     slot: 'MainHand',
     rarity: 'Rare',
     rarityTier: 5,
     equipped: true,
+    traits: ['More attack', 'Better for criticals'],
   ),
   InventoryItem(
     id: 'uncommon-shield-2',
@@ -101,5 +108,6 @@ const mockInventory = <InventoryItem>[
     slot: 'Relic1',
     rarity: 'Legendary',
     rarityTier: 11,
+    traits: ['Devastating weakness breaks', 'Much more attack', 'Acts sooner', 'Cuts through armor'],
   ),
 ];

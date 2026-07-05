@@ -41,6 +41,13 @@ const allSprites = <String, PixelSprite>{
   'satchel': Sprites.satchel,
   'crystal': Sprites.crystal,
   'emblem': Sprites.emblem,
+  'fireIcon': Sprites.fireIcon,
+  'iceIcon': Sprites.iceIcon,
+  'boltIcon': Sprites.boltIcon,
+  'poisonIcon': Sprites.poisonIcon,
+  'physicalIcon': Sprites.physicalIcon,
+  'padlock': Sprites.padlock,
+  'compass': Sprites.compass,
 };
 
 void main() {

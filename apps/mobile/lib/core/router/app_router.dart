@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/dashboard/dashboard_screen.dart';
 import '../../features/inventory/inventory_screen.dart';
+import '../../features/map/zone_map_screen.dart';
 import '../../features/shell/app_shell.dart';
 import '../../features/widget_preview/widget_preview_screen.dart';
 
@@ -22,6 +23,10 @@ final appRouter = GoRouter(
         GoRoute(
           path: '/dashboard',
           builder: (context, state) => const DashboardScreen(),
+        ),
+        GoRoute(
+          path: '/map',
+          builder: (context, state) => const ZoneMapScreen(),
         ),
         GoRoute(
           path: '/inventory',
