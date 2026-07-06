@@ -17,6 +17,7 @@ class AppShell extends StatelessWidget {
   static const _tabs = [
     (path: '/dashboard', sprite: Sprites.castle, label: 'HALL'),
     (path: '/map', sprite: Sprites.compass, label: 'MAP'),
+    (path: '/team', sprite: Sprites.helmet, label: 'TEAM'),
     (path: '/inventory', sprite: Sprites.satchel, label: 'BAG'),
     (path: '/widget', sprite: Sprites.crystal, label: 'CHARM'),
   ];

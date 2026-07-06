@@ -5,6 +5,7 @@ import '../../features/dashboard/dashboard_screen.dart';
 import '../../features/inventory/inventory_screen.dart';
 import '../../features/map/zone_map_screen.dart';
 import '../../features/shell/app_shell.dart';
+import '../../features/team/team_screen.dart';
 import '../../features/widget_preview/widget_preview_screen.dart';
 
 /// Top-level navigation graph. Full auth-gating and deep-link handling
@@ -27,6 +28,10 @@ final appRouter = GoRouter(
         GoRoute(
           path: '/map',
           builder: (context, state) => const ZoneMapScreen(),
+        ),
+        GoRoute(
+          path: '/team',
+          builder: (context, state) => const TeamScreen(),
         ),
         GoRoute(
           path: '/inventory',
