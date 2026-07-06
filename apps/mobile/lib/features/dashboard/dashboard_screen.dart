@@ -8,6 +8,7 @@ import '../../core/pixel/pixel_sprite.dart';
 import '../../core/pixel/pixel_widgets.dart';
 import '../../core/pixel/sprites.dart';
 import '../../core/theme/app_theme.dart';
+import 'widgets/battle_stage.dart';
 import 'widgets/character_status_card.dart';
 
 /// The guild hall: party lineup, live battle diorama, adventure log.
@@ -39,8 +40,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _HallHeader(onCycle: _cycleStatus),
-                const SizedBox(height: 16),
-                const _PartyRow().animate().fadeIn(duration: 400.ms),
                 const SizedBox(height: 16),
                 _BattleDiorama(status: _status)
                     .animate()
@@ -98,54 +97,9 @@ class _HallHeader extends StatelessWidget {
   }
 }
 
-class _PartyRow extends StatelessWidget {
-  const _PartyRow();
-
-  static const _party = [
-    (frames: Sprites.warriorFrames, name: 'VANGUARD', role: 'TANK'),
-    (frames: Sprites.berserkerFrames, name: 'EMBER', role: 'DPS'),
-    (frames: Sprites.clericFrames, name: 'LUMEN', role: 'HEALER'),
-    (frames: Sprites.mageFrames, name: 'FROST', role: 'DPS'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return PixelPanel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const PixelText('YOUR PARTY', size: 11, color: AppColors.muted),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              for (final (i, member) in _party.indexed)
-                Expanded(
-                  child: Column(
-                    children: [
-                      // Two hand-drawn poses stepped slowly, staggered so
-                      // the line breathes without moving in lockstep.
-                      AnimatedPixelArt(
-                        member.frames,
-                        size: 56,
-                        stepMs: 600,
-                        startFrame: i % 2,
-                      ),
-                      const SizedBox(height: 6),
-                      PixelText(member.name, size: 9, maxLines: 1),
-                      PixelText(member.role, size: 8, color: AppColors.muted),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// A tiny animated battle scene: the vanguard trading blows with the
-/// current wave. Pure flavor — outcomes come from the readable status.
+/// The live battle scene: the whole party fighting the current wave with
+/// clear turn indicators and always-visible health. Outcomes come from the
+/// readable status.
 class _BattleDiorama extends StatelessWidget {
   const _BattleDiorama({required this.status});
 
@@ -188,92 +142,9 @@ class _BattleDiorama extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          _BattleLoop(bossFight: danger || stuck),
+          BattleStage(bossFight: danger || stuck),
         ],
       ),
-    );
-  }
-}
-
-/// Hand-choreographed strike loop on a 2s cycle of discrete steps:
-/// idle breathing -> the vanguard steps in -> a three-frame slash lands ->
-/// the enemy is knocked back a few pixels -> everyone resets. No easing,
-/// no continuous motion; every pose is a drawn frame.
-class _BattleLoop extends StatefulWidget {
-  const _BattleLoop({required this.bossFight});
-
-  final bool bossFight;
-
-  @override
-  State<_BattleLoop> createState() => _BattleLoopState();
-}
-
-class _BattleLoopState extends State<_BattleLoop>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _cycle = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 2000),
-  )..repeat();
-
-  @override
-  void dispose() {
-    _cycle.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final enemyFrames = widget.bossFight ? Sprites.bossFrames : Sprites.slimeFrames;
-
-    return AnimatedBuilder(
-      animation: _cycle,
-      builder: (context, _) {
-        final t = _cycle.value;
-
-        // Discrete choreography windows (fractions of the 2s cycle).
-        final lunging = t >= 0.50 && t < 0.66;
-        final striking = t >= 0.55 && t < 0.70;
-        final recoiling = t >= 0.58 && t < 0.74;
-
-        final slashFrame = striking
-            ? (((t - 0.55) / 0.15) * 3).floor().clamp(0, 2)
-            : -1;
-        final idleFrame = (t * 4).floor() % 2;
-
-        return SizedBox(
-          height: 72,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              Transform.translate(
-                offset: Offset(lunging ? 8 : 0, 0),
-                child: PixelArt(
-                  lunging ? Sprites.warrior : Sprites.warriorFrames[idleFrame],
-                  size: 64,
-                ),
-              ),
-              const PixelText('VS', size: 14, color: AppColors.danger),
-              Transform.translate(
-                offset: Offset(recoiling ? 5 : 0, 0),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    PixelArt(
-                      recoiling
-                          ? enemyFrames[1]
-                          : enemyFrames[idleFrame % enemyFrames.length],
-                      size: 64,
-                      flipX: true,
-                    ),
-                    if (slashFrame >= 0)
-                      PixelArt(Sprites.slashFrames[slashFrame], size: 64),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }

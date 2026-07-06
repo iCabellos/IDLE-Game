@@ -388,6 +388,18 @@ class Sprites {
     '................',
   ]);
 
+  /// Turn cursor: the classic JRPG "who acts now" arrow (8x8).
+  static const turnCursor = PixelSprite(palette: _basePalette, rows: [
+    'KKKKKKKK',
+    'KGGGGGGK',
+    '.KGGGGK.',
+    '.KGGGGK.',
+    '..KGGK..',
+    '..KGGK..',
+    '...KK...',
+    '........',
+  ]);
+
   /// Idle frame pairs, ready to feed AnimatedPixelArt.
   static const warriorFrames = [warrior, warriorB];
   static const berserkerFrames = [berserker, berserkerB];

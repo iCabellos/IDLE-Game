@@ -48,6 +48,7 @@ const allSprites = <String, PixelSprite>{
   'physicalIcon': Sprites.physicalIcon,
   'padlock': Sprites.padlock,
   'compass': Sprites.compass,
+  'turnCursor': Sprites.turnCursor,
 };
 
 void main() {
